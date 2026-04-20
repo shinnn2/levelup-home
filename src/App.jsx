@@ -309,15 +309,16 @@ export default function App() {
     // PWA로 이미 실행 중이면 안 보여줌
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     if (isStandalone) return;
-    // 이미 안 보기로 선택했으면 스킵
+    // 영구 dismiss (이미 추가했어요)
     const dismissed = localStorage.getItem('levelup_install_dismissed');
     if (dismissed) return;
+    // 임시 dismiss (나중에) - 3일간 안 보여줌
+    const snoozedUntil = localStorage.getItem('levelup_install_snoozed_until');
+    if (snoozedUntil && Date.now() < parseInt(snoozedUntil)) return;
     // 3초 후에 자연스럽게 띄우기
     const t = setTimeout(() => setShowInstallPrompt(true), 3000);
     return () => clearTimeout(t);
   }, [familyData, dataFromServer]);
-const saveFamilyData = useCallback(async (newData) => {
-  
     setFamilyData(newData);
     if (user && dataFromServer) {
       try {
@@ -852,12 +853,13 @@ const saveFamilyData = useCallback(async (newData) => {
             <div style={{ background: '#f9fafb', padding: 12, borderRadius: 12, marginBottom: 12 }}>
               <p style={{ fontSize: 11, color: '#374151', fontWeight: 700, lineHeight: 1.7, margin: 0 }}>
                 🍎 {t.installIphone}<br/>
-                🤖 {t.installAndroid}
+                🤖 {t.installAndroid}<br/>
+                💻 {t.installDesktop}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { localStorage.setItem('levelup_install_dismissed', '1'); setShowInstallPrompt(false); }} style={{ flex: 1, padding: 12, background: '#f3f4f6', borderRadius: 12, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.installDone}</button>
-              <button onClick={() => setShowInstallPrompt(false)} style={{ flex: 1, padding: 12, background: '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.installLater}</button>
+              <button onClick={() => { localStorage.setItem('levelup_install_snoozed_until', String(Date.now() + 3 * 24 * 60 * 60 * 1000)); setShowInstallPrompt(false); }} style={{ flex: 1, padding: 12, background: '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.installLater}</button>
             </div>
           </div>
         </div>
