@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Home, ShoppingBag, Check, Gift, Settings, Clock, LogOut, Globe, Trash2, Plus, Edit2 } from 'lucide-react';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { translations, detectLanguage } from './i18n';
 
 const FIRESTORE_COLLECTION = 'levelup_home_families';
@@ -55,7 +55,7 @@ const Confetti = ({ onComplete }) => {
 const DEFAULT_SHOP_ITEMS_KO = [
   { id: 'i1', name: '유튜브/게임 30분 추가', price: 100, minLevel: 1, icon: '📺' },
   { id: 'i2', name: '좋아하는 간식 선택', price: 150, minLevel: 1, icon: '🍪' },
-  { id: 'i3', name: '오늘 숙제 한 장 건너뛰기', price: 200, minLevel: 1, icon: '📝' },
+  { id: 'i3', name: '오늘 미션 1장 건너뛰기', price: 200, minLevel: 1, icon: '📝' },
   { id: 'i4', name: '주말 영화 선택권', price: 250, minLevel: 3, icon: '🍿' },
   { id: 'i5', name: '디저트 카페 데이트', price: 300, minLevel: 5, icon: '🧋' },
   { id: 'i6', name: '친구 집 놀러가기', price: 400, minLevel: 5, icon: '👫' },
@@ -68,7 +68,7 @@ const DEFAULT_SHOP_ITEMS_KO = [
 const DEFAULT_SHOP_ITEMS_EN = [
   { id: 'i1', name: 'Extra 30 min YouTube/Gaming', price: 100, minLevel: 1, icon: '📺' },
   { id: 'i2', name: 'Choose Favorite Snack', price: 150, minLevel: 1, icon: '🍪' },
-  { id: 'i3', name: 'Skip One Page of Homework', price: 200, minLevel: 1, icon: '📝' },
+  { id: 'i3', name: 'Skip One Mission', price: 200, minLevel: 1, icon: '📝' },
   { id: 'i4', name: 'Pick Weekend Movie', price: 250, minLevel: 3, icon: '🍿' },
   { id: 'i5', name: 'Dessert Cafe Date', price: 300, minLevel: 5, icon: '🧋' },
   { id: 'i6', name: 'Friend Playdate', price: 400, minLevel: 5, icon: '👫' },
@@ -176,13 +176,31 @@ function Onboarding({ lang, setLang, onComplete }) {
             )}
           </div>
         )}
-        {step === 5 && (
-          <div style={{ textAlign: 'center', paddingTop: 40 }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#4f46e5', marginBottom: 12 }}>{t.ready}</h1>
-            <p style={{ fontSize: 14, color: '#6b7280', fontWeight: 600, lineHeight: 1.6 }}>{t.readyDesc}</p>
-          </div>
-        )}
+        {step === 5 && (() => {
+          const previewItems = (lang === 'ko' ? DEFAULT_SHOP_ITEMS_KO : DEFAULT_SHOP_ITEMS_EN).slice(0, 4);
+          return (
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <div style={{ fontSize: 44, marginBottom: 8 }}>🎉</div>
+                <h1 style={{ fontSize: 22, fontWeight: 900, color: '#4f46e5', marginBottom: 6 }}>{t.ready}</h1>
+                <p style={{ fontSize: 12, color: '#6b7280', fontWeight: 600 }}>{t.readyDesc}</p>
+              </div>
+              <div style={{ background: '#eef2ff', padding: 14, borderRadius: 16, marginTop: 12 }}>
+                <h3 style={{ fontSize: 13, fontWeight: 900, color: '#4338ca', marginBottom: 4 }}>🛒 {t.shopPreviewTitle}</h3>
+                <p style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 10, lineHeight: 1.5 }}>{t.shopPreviewDesc}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {previewItems.map(item => (
+                    <div key={item.id} style={{ background: '#fff', padding: '8px 10px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 18 }}>{item.icon}</span>
+                      <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: '#374151' }}>{item.name}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#92400e', background: '#fffbeb', padding: '2px 6px', borderRadius: 6 }}>🪙 {item.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
@@ -229,9 +247,11 @@ export default function App() {
   const [showParentModal, setShowParentModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showShopManager, setShowShopManager] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [showFirstMissionCelebration, setShowFirstMissionCelebration] = useState(false);
   const [message, setMessage] = useState('');
 
   const t = translations[lang];
@@ -293,14 +313,22 @@ export default function App() {
     if (hist.some(h => h.date === todayDate && h.type === 'daily')) {
       triggerAlert(t.missionAlreadyDone); return;
     }
+    // 가족 전체에서 첫 미션인지 확인 (모든 자녀의 히스토리 체크)
+    const isFirstEverMission = Object.values(familyData.players).every(pl => 
+      !(pl.history || []).some(h => h.type === 'daily')
+    );
     const inv = normalizeInventory(p.inventory);
     let nExp = p.exp + 20, nLv = p.level, nCoins = p.coins + 50, leveled = false;
     if (nExp >= 100) { nExp = 0; nLv += 1; leveled = true; }
-    else triggerAlert(t.missionComplete);
+    else if (!isFirstEverMission) triggerAlert(t.missionComplete);
     const entry = { id: Date.now(), date: todayDate, type: 'daily', description: t.completeDailyMission, rewards: t.missionRewards, levelAfter: nLv };
     updatePlayer(familyData.activeUser, (up) => ({ ...up, inventory: [...inv, { name: t.completeDailyMission, icon: '🎮' }], exp: nExp, level: nLv, coins: nCoins, history: [...hist, entry] }));
     setShowParentModal(false);
-    if (leveled) {
+    if (isFirstEverMission) {
+      playSound('levelUp');
+      setShowFirstMissionCelebration(true);
+      setTimeout(() => setShowFirstMissionCelebration(false), 4500);
+    } else if (leveled) {
       playSound('levelUp'); setShowLevelUp(true);
       setTimeout(() => setShowLevelUp(false), 4000);
     }
@@ -387,6 +415,20 @@ export default function App() {
     saveFamilyData({ ...familyData, shopItems: newItems });
   };
 
+  const handleResetFamily = async () => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, FIRESTORE_COLLECTION, user.uid));
+      setFamilyData(null);
+      setShowResetConfirm(false);
+      setShowParentModal(false);
+      setShowShopManager(false);
+    } catch (e) {
+      console.error("Reset failed:", e);
+      triggerAlert('Reset failed. Please try again.');
+    }
+  };
+
   // --- Loading ---
   if (authLoading || (user && !isLoaded)) {
     return (
@@ -450,6 +492,22 @@ export default function App() {
             <div style={{ fontSize: 64, marginBottom: 12 }}>🌟</div>
             <h1 style={{ fontSize: 44, fontWeight: 900, background: 'linear-gradient(90deg, #fde68a, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textTransform: 'uppercase', fontStyle: 'italic' }}>{t.levelUp}</h1>
             <p style={{ fontSize: 18, color: '#fff', fontWeight: 700, background: 'rgba(79,70,229,0.5)', padding: '8px 24px', borderRadius: 50, marginTop: 8 }}>{activeUser} {t.nowLv} {cur.level}!</p>
+          </div>
+        </div>
+      )}
+
+      {showFirstMissionCelebration && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', padding: 24 }}>
+          <Confetti onComplete={() => {}} />
+          <div style={{ background: '#fff', borderRadius: 32, padding: '36px 28px', textAlign: 'center', maxWidth: 360, boxShadow: '0 20px 60px rgba(79,70,229,0.4)', border: '4px solid #fde68a' }}>
+            <div style={{ fontSize: 72, marginBottom: 12 }}>🎊</div>
+            <h1 style={{ fontSize: 26, fontWeight: 900, background: 'linear-gradient(90deg, #f59e0b, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 14, lineHeight: 1.3 }}>
+              {lang === 'ko' ? '첫 미션 완료!' : 'First Mission Complete!'}
+            </h1>
+            <p style={{ fontSize: 14, color: '#4338ca', fontWeight: 700, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{t.firstMissionCelebration}</p>
+            <div style={{ marginTop: 18, padding: '10px 14px', background: '#eef2ff', borderRadius: 12, display: 'inline-block' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#4f46e5' }}>+20 EXP · +50 🪙 · +1 🎟️</span>
+            </div>
           </div>
         </div>
       )}
@@ -534,7 +592,7 @@ export default function App() {
               <div style={{ border: '2px dashed #d1d5db', borderRadius: 24, padding: 40, textAlign: 'center', opacity: 0.6 }}>
                 <div style={{ fontSize: 36, marginBottom: 14 }}>🎒</div>
                 <p style={{ fontWeight: 700, color: '#9ca3af', fontSize: 13 }}>{t.bagEmpty}</p>
-                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>{t.bagEmptyDesc}</p>
+                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 8, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{t.bagEmptyDesc}</p>
               </div>
             )}
           </div>
@@ -650,6 +708,7 @@ export default function App() {
               </button>
             </div>
             <button onClick={() => { setShowParentModal(false); setShowShopManager(true); }} style={{ width: '100%', padding: 12, background: '#e0e7ff', borderRadius: 14, fontWeight: 800, color: '#4338ca', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageShop}</button>
+            <button onClick={() => setShowResetConfirm(true)} style={{ width: '100%', padding: 12, background: '#fef2f2', borderRadius: 14, fontWeight: 800, color: '#dc2626', border: '1px solid #fecaca', cursor: 'pointer', fontSize: 12, marginBottom: 8 }}>{t.resetFamily}</button>
             <button onClick={() => setShowParentModal(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
           </div>
         </div>
@@ -673,6 +732,23 @@ export default function App() {
               </div>
             ))}
             <button onClick={() => setShowShopManager(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer', marginTop: 12 }}>{t.close}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.7)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 340, width: '100%', padding: 24 }}>
+            <div style={{ textAlign: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>⚠️</div>
+              <h3 style={{ fontSize: 17, fontWeight: 900, color: '#dc2626', marginBottom: 10 }}>{t.resetConfirmTitle}</h3>
+              <p style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, lineHeight: 1.6 }}>{t.resetConfirmDesc}</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: 12, background: '#f3f4f6', borderRadius: 12, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.cancel}</button>
+              <button onClick={handleResetFamily} style={{ flex: 1, padding: 12, background: '#dc2626', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: 'pointer' }}>{t.resetConfirmButton}</button>
+            </div>
           </div>
         </div>
       )}
