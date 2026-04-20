@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="108" fill="#4f46e5"/>
+  <text x="256" y="220" text-anchor="middle" font-size="140" fill="white">⚔️</text>
+  <text x="256" y="350" text-anchor="middle" font-family="Arial Black" font-weight="900" font-size="60" fill="#fde68a" font-style="italic">LEVEL UP</text>
+</svg>
