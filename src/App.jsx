@@ -55,7 +55,7 @@ const Confetti = ({ onComplete }) => {
 const DEFAULT_SHOP_ITEMS_KO = [
   { id: 'i1', name: '유튜브/게임 30분 추가', price: 100, minLevel: 1, icon: '📺' },
   { id: 'i2', name: '좋아하는 간식 선택', price: 150, minLevel: 1, icon: '🍪' },
-  { id: 'i3', name: '오늘 미션 1장 건너뛰기', price: 200, minLevel: 1, icon: '📝' },
+  { id: 'i3', name: '아빠/엄마랑 특별한 시간 30분', price: 200, minLevel: 1, icon: '👨‍👧' },
   { id: 'i4', name: '주말 영화 선택권', price: 250, minLevel: 3, icon: '🍿' },
   { id: 'i5', name: '디저트 카페 데이트', price: 300, minLevel: 5, icon: '🧋' },
   { id: 'i6', name: '친구 집 놀러가기', price: 400, minLevel: 5, icon: '👫' },
@@ -68,7 +68,7 @@ const DEFAULT_SHOP_ITEMS_KO = [
 const DEFAULT_SHOP_ITEMS_EN = [
   { id: 'i1', name: 'Extra 30 min YouTube/Gaming', price: 100, minLevel: 1, icon: '📺' },
   { id: 'i2', name: 'Choose Favorite Snack', price: 150, minLevel: 1, icon: '🍪' },
-  { id: 'i3', name: 'Skip One Mission', price: 200, minLevel: 1, icon: '📝' },
+  { id: 'i3', name: 'Special 30 min with Dad/Mom', price: 200, minLevel: 1, icon: '👨‍👧' },
   { id: 'i4', name: 'Pick Weekend Movie', price: 250, minLevel: 3, icon: '🍿' },
   { id: 'i5', name: 'Dessert Cafe Date', price: 300, minLevel: 5, icon: '🧋' },
   { id: 'i6', name: 'Friend Playdate', price: 400, minLevel: 5, icon: '👫' },
@@ -84,6 +84,20 @@ const getTitle = (lv, t) => {
   if (lv < 20) return { text: t.braveWarrior, emoji: '⚔️', gear: '⚔️' };
   if (lv < 50) return { text: t.superWarrior, emoji: '🛡️', gear: '🛡️' };
   return { text: t.masterWarrior, emoji: '👑', gear: '👑' };
+};
+
+const RANK_LEVELS = [
+  { key: 'trainee', minLevel: 1, emoji: '🌱' },
+  { key: 'juniorWarrior', minLevel: 5, emoji: '🗡️' },
+  { key: 'braveWarrior', minLevel: 10, emoji: '⚔️' },
+  { key: 'superWarrior', minLevel: 20, emoji: '🛡️' },
+  { key: 'masterWarrior', minLevel: 50, emoji: '👑' },
+];
+
+const getNextRankInfo = (currentLevel) => {
+  const next = RANK_LEVELS.find(r => r.minLevel > currentLevel);
+  if (!next) return null;
+  return { ...next, levelsRemaining: next.minLevel - currentLevel };
 };
 
 const getToday = () => new Date().toISOString().split('T')[0];
@@ -198,6 +212,10 @@ function Onboarding({ lang, setLang, onComplete }) {
                   ))}
                 </div>
               </div>
+              <div style={{ background: '#fffbeb', padding: 12, borderRadius: 14, marginTop: 10, border: '1px solid #fde68a' }}>
+                <h3 style={{ fontSize: 12, fontWeight: 900, color: '#92400e', marginBottom: 4 }}>{t.spouseNoticeTitle}</h3>
+                <p style={{ fontSize: 10, color: '#78350f', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{t.spouseNoticeDesc}</p>
+              </div>
             </div>
           );
         })()}
@@ -246,8 +264,12 @@ export default function App() {
   const [couponIndexToUse, setCouponIndexToUse] = useState(null);
   const [showParentModal, setShowParentModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [showForgotPinModal, setShowForgotPinModal] = useState(false);
+  const [newPinInput, setNewPinInput] = useState('');
   const [showShopManager, setShowShopManager] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showRankGuide, setShowRankGuide] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -281,7 +303,19 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
-  const saveFamilyData = useCallback(async (newData) => {
+  // 데이터 로드 후 홈 화면 추가 안내 확인
+  useEffect(() => {
+    if (!familyData || !dataFromServer) return;
+    // PWA로 이미 실행 중이면 안 보여줌
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone) return;
+    // 이미 안 보기로 선택했으면 스킵
+    const dismissed = localStorage.getItem('levelup_install_dismissed');
+    if (dismissed) return;
+    // 3초 후에 자연스럽게 띄우기
+    const t = setTimeout(() => setShowInstallPrompt(true), 3000);
+    return () => clearTimeout(t);
+  }, [familyData, dataFromServer]);
     setFamilyData(newData);
     if (user && dataFromServer) {
       try {
@@ -442,25 +476,48 @@ export default function App() {
   // --- Login ---
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Nunito', 'Noto Sans KR', sans-serif" }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 20px 40px', fontFamily: "'Nunito', 'Noto Sans KR', sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@700;800;900&display=swap" rel="stylesheet" />
         <button onClick={() => setLang(lang === 'ko' ? 'en' : 'ko')} style={{ position: 'absolute', top: 20, right: 20, background: '#fff', border: '1px solid #c7d2fe', borderRadius: 20, padding: '6px 12px', fontSize: 12, fontWeight: 800, color: '#4f46e5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
           <Globe size={12} /> {t.languageToggle}
         </button>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>⚔️</div>
-        <h1 style={{ fontSize: 34, fontWeight: 900, color: '#4f46e5', marginBottom: 8, textAlign: 'center' }}>{t.appName}</h1>
-        <p style={{ color: '#6b7280', fontWeight: 700, marginBottom: 32, textAlign: 'center', maxWidth: 320, fontSize: 14 }}>{t.signInDesc}</p>
+        <div style={{ fontSize: 56, marginBottom: 10 }}>⚔️</div>
+        <h1 style={{ fontSize: 30, fontWeight: 900, color: '#4f46e5', marginBottom: 10, textAlign: 'center' }}>{t.appName}</h1>
+        <p style={{ color: '#4338ca', fontWeight: 700, marginBottom: 4, textAlign: 'center', maxWidth: 340, fontSize: 14 }}>
+          {lang === 'ko' ? '잔소리 없는 습관 만들기' : 'Build Habits Without Nagging'}
+        </p>
+        <p style={{ color: '#6b7280', fontWeight: 600, marginBottom: 24, textAlign: 'center', maxWidth: 340, fontSize: 12, lineHeight: 1.6 }}>
+          {lang === 'ko' 
+            ? '아이가 미션을 완료하면 부모가 승인하고, 코인을 모아 실제 보상(간식, 영화, 나들이 등)으로 교환하는 가족용 앱입니다.'
+            : 'Kids complete missions, parents approve, coins are exchanged for real rewards (snacks, movies, outings) you set up.'}
+        </p>
+
         <button onClick={handleLogin} style={{ background: '#fff', border: '2px solid #e5e7eb', padding: '14px 28px', borderRadius: 16, fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 14px rgba(0,0,0,0.08)' }}>
           <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 7.1 29.3 5 24 5 16.3 5 9.7 9.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C41.4 35.8 44 30.3 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
           {t.signInGoogle}
         </button>
-        <p style={{ marginTop: 24, fontSize: 11, color: '#9ca3af', textAlign: 'center', maxWidth: 280 }}>
+        <p style={{ marginTop: 14, fontSize: 10, color: '#9ca3af', textAlign: 'center', maxWidth: 280 }}>
           {lang === 'ko' ? '로그인하시면 ' : 'By signing in, you agree to our '}
           <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', textDecoration: 'underline', fontWeight: 700 }}>
             {lang === 'ko' ? '개인정보 처리방침' : 'Privacy Policy'}
           </a>
           {lang === 'ko' ? '에 동의하는 것으로 간주됩니다.' : '.'}
         </p>
+
+        {/* Safety info card */}
+        <div style={{ marginTop: 24, background: '#fff', borderRadius: 20, padding: 18, maxWidth: 360, width: '100%', border: '1px solid #e0e7ff' }}>
+          <h3 style={{ fontSize: 13, fontWeight: 900, color: '#4338ca', marginBottom: 10 }}>{t.safetyTitle}</h3>
+          <div style={{ fontSize: 11, color: '#4b5563', fontWeight: 600, lineHeight: 1.7 }}>
+            <p style={{ marginBottom: 6 }}>✅ {t.safetyCollect}</p>
+            <p style={{ marginBottom: 6 }}>❌ {t.safetyNotCollect}</p>
+            <p style={{ marginBottom: 6 }}>🗄️ {t.safetyStorage}</p>
+            <p style={{ marginBottom: 6 }}>🌐 {t.safetyNoInstall}</p>
+            <p style={{ marginBottom: 6 }}>💰 {t.safetyFreePrice}</p>
+            <p>
+              📂 <a href="https://github.com/shinnn2/levelup-home" target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', textDecoration: 'underline', fontWeight: 700 }}>{t.safetyOpenSource}</a>
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -542,15 +599,36 @@ export default function App() {
       <section style={{ padding: 16 }}>
         <div style={{ background: '#fff', borderRadius: 24, padding: 20, boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div>
-              <span style={{ fontSize: 9, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 2 }}>{t.warriorRank}</span>
+            <button onClick={() => setShowRankGuide(true)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+              <span style={{ fontSize: 9, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
+                {t.warriorRank} <span style={{ fontSize: 10 }}>ⓘ</span>
+              </span>
               <div><span style={{ fontSize: 17, fontWeight: 900, color: '#4338ca' }}>{curTitle.text}</span> <span style={{ fontSize: 20 }}>{curTitle.emoji}</span></div>
-            </div>
+            </button>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: 9, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 2 }}>{t.level}</span>
               <div style={{ fontSize: 24, fontWeight: 900, color: '#4f46e5', fontStyle: 'italic' }}>Lv {cur.level}</div>
             </div>
           </div>
+          {(() => {
+            const nextRank = getNextRankInfo(cur.level);
+            if (!nextRank) {
+              return (
+                <div style={{ marginBottom: 12, padding: '6px 12px', background: '#fef3c7', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>👑</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#92400e' }}>{t.maxRank}</span>
+                </div>
+              );
+            }
+            return (
+              <button onClick={() => setShowRankGuide(true)} style={{ marginBottom: 12, padding: '6px 12px', background: '#eef2ff', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', width: '100%' }}>
+                <span style={{ fontSize: 13 }}>{nextRank.emoji}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#4338ca' }}>
+                  {t.nextRank}: {t[nextRank.key]} (Lv {nextRank.minLevel}) — {nextRank.levelsRemaining} {t.levelsToGo}
+                </span>
+              </button>
+            );
+          })()}
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontWeight: 900, color: '#9ca3af', marginBottom: 4, textTransform: 'uppercase' }}><span>{t.experience}</span><span>{cur.exp} / 100</span></div>
             <div style={{ width: '100%', height: 14, background: '#f3f4f6', borderRadius: 50, overflow: 'hidden', padding: 2 }}>
@@ -676,6 +754,30 @@ export default function App() {
                 <button type="submit" style={{ flex: 1, padding: '12px 0', background: '#4f46e5', color: '#fff', borderRadius: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}>{t.unlock}</button>
               </div>
             </form>
+            <button type="button" onClick={() => { setShowPinModal(false); setPinInput(''); setShowForgotPinModal(true); }} style={{ marginTop: 14, background: 'none', border: 'none', color: '#6366f1', fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>{t.forgotPin}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot PIN Modal */}
+      {showForgotPinModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.65)', backdropFilter: 'blur(12px)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 340, width: '100%', padding: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🔑</div>
+            <h3 style={{ fontSize: 17, fontWeight: 900, color: '#4338ca', marginBottom: 6 }}>{t.pinResetConfirmTitle}</h3>
+            <p style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, lineHeight: 1.5, marginBottom: 14 }}>{t.pinResetConfirmDesc}</p>
+            <input type="password" inputMode="numeric" maxLength="4" autoFocus value={newPinInput} onChange={e => setNewPinInput(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={{ width: '100%', textAlign: 'center', fontSize: 24, letterSpacing: '0.6em', fontWeight: 900, background: '#f9fafb', border: '2px solid #e5e7eb', borderRadius: 14, padding: '12px 0', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setShowForgotPinModal(false); setNewPinInput(''); }} style={{ flex: 1, padding: '12px 0', background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.cancel}</button>
+              <button onClick={() => {
+                if (newPinInput.length === 4 && /^\d{4}$/.test(newPinInput)) {
+                  saveFamilyData({ ...familyData, pin: newPinInput });
+                  setShowForgotPinModal(false);
+                  setNewPinInput('');
+                  triggerAlert(t.pinResetSuccess);
+                }
+              }} disabled={newPinInput.length !== 4} style={{ flex: 1, padding: '12px 0', background: newPinInput.length === 4 ? '#4f46e5' : '#c7d2fe', color: '#fff', borderRadius: 14, fontWeight: 800, border: 'none', cursor: newPinInput.length === 4 ? 'pointer' : 'not-allowed' }}>{t.save}</button>
+            </div>
           </div>
         </div>
       )}
@@ -732,6 +834,56 @@ export default function App() {
               </div>
             ))}
             <button onClick={() => setShowShopManager(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer', marginTop: 12 }}>{t.close}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Install Prompt Modal */}
+      {showInstallPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.5)', backdropFilter: 'blur(6px)', zIndex: 55, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 380, width: '100%', padding: 22, marginBottom: 80, boxShadow: '0 -10px 30px rgba(0,0,0,0.15)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 36, marginBottom: 6 }}>📱</div>
+              <h3 style={{ fontSize: 17, fontWeight: 900, color: '#4338ca', marginBottom: 6 }}>{t.installPromptTitle}</h3>
+              <p style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, lineHeight: 1.5 }}>{t.installPromptDesc}</p>
+            </div>
+            <div style={{ background: '#f9fafb', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: '#374151', fontWeight: 700, lineHeight: 1.7, margin: 0 }}>
+                🍎 {t.installIphone}<br/>
+                🤖 {t.installAndroid}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { localStorage.setItem('levelup_install_dismissed', '1'); setShowInstallPrompt(false); }} style={{ flex: 1, padding: 12, background: '#f3f4f6', borderRadius: 12, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.installDone}</button>
+              <button onClick={() => setShowInstallPrompt(false)} style={{ flex: 1, padding: 12, background: '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.installLater}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rank Guide Modal */}
+      {showRankGuide && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(8px)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 360, width: '100%', padding: 24 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4338ca', marginBottom: 16, textAlign: 'center' }}>🏆 {t.rankGuide}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {RANK_LEVELS.map((r, idx) => {
+                const nextMin = RANK_LEVELS[idx + 1]?.minLevel;
+                const isCurrent = cur.level >= r.minLevel && (!nextMin || cur.level < nextMin);
+                const range = nextMin ? `Lv ${r.minLevel}–${nextMin - 1}` : `Lv ${r.minLevel}+`;
+                return (
+                  <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 14, background: isCurrent ? '#eef2ff' : '#f9fafb', border: isCurrent ? '2px solid #4f46e5' : '1px solid #e5e7eb' }}>
+                    <span style={{ fontSize: 26 }}>{r.emoji}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: isCurrent ? '#4338ca' : '#374151' }}>{t[r.key]}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', marginTop: 2 }}>{range}</div>
+                    </div>
+                    {isCurrent && <span style={{ fontSize: 10, fontWeight: 900, color: '#fff', background: '#4f46e5', padding: '3px 8px', borderRadius: 8 }}>{t.currentRank}</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={() => setShowRankGuide(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 12, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer', marginTop: 16 }}>{t.close}</button>
           </div>
         </div>
       )}
