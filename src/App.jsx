@@ -100,7 +100,10 @@ const getNextRankInfo = (currentLevel) => {
   return { ...next, levelsRemaining: next.minLevel - currentLevel };
 };
 
-const getToday = () => new Date().toISOString().split('T')[0];
+const getToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
 const normalizeInventory = (inv) => Array.isArray(inv) ? inv : [];
 
 const makeEmptyPlayer = (name, age) => ({ name, age: parseInt(age) || 10, exp: 0, level: 1, coins: 0, inventory: [], purchasedOneTimeItems: [], history: [] });
@@ -244,13 +247,13 @@ export default function App() {
   const [familyData, setFamilyData] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [dataFromServer, setDataFromServer] = useState(false);
-  const [todayDate, setTodayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [todayDate, setTodayDate] = useState(getToday());
   const [lang, setLang] = useState(detectLanguage());
 
   // 날짜 자동 갱신
   useEffect(() => {
     const checkDate = () => {
-      const newToday = new Date().toISOString().split('T')[0];
+      const newToday = getToday();
       if (newToday !== todayDate) setTodayDate(newToday);
     };
     const handleVis = () => { if (!document.hidden) checkDate(); };
