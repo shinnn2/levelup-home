@@ -316,6 +316,8 @@ export default function App() {
     const t = setTimeout(() => setShowInstallPrompt(true), 3000);
     return () => clearTimeout(t);
   }, [familyData, dataFromServer]);
+const saveFamilyData = useCallback(async (newData) => {
+  
     setFamilyData(newData);
     if (user && dataFromServer) {
       try {
