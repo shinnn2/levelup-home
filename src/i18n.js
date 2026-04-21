@@ -107,7 +107,7 @@ export const translations = {
     guide: '사용 설명서',
     guideForParent: '부모용 가이드',
     guideForChild: '아이용 가이드',
-    guideParentContent: '[첫 설정]\n1. Google 로그인 후 가족 정보 입력\n2. 부모 PIN(4자리) 설정\n3. 자녀 닉네임, 이모지, 나이 입력\n\n[매일 사용법]\n1. 아이에게 오늘의 미션 부여 (예: 수학 7페이지)\n2. 아이가 완료하면 부모 공간(🔒) 접속\n3. PIN 입력 후 "오늘의 미션 완료" 버튼 탭\n4. 미션 이름 입력(선택) → 아이가 쿠폰/코인/경험치 획득\n\n[상점 아이템 관리]\n부모 공간 → "🛒 상점 관리"에서 추가/수정/삭제\n\n[PIN 잊었을 때]\nPIN 입력창 하단의 "PIN을 잊으셨나요?" 클릭',
+    guideParentContent: '[첫 설정]\n1. Google 로그인 후 가족 정보 입력\n2. 부모 PIN(4자리) 설정\n3. 자녀 닉네임, 이모지, 나이 입력\n\n[매일 사용법]\n1. 아이에게 오늘의 미션 부여 (예: 수학 7페이지)\n2. 아이가 완료하면 부모 공간(🔒) 접속\n3. PIN 입력 후 "오늘의 미션 완료" 버튼 탭\n4. 미션 이름 입력(선택) → 아이가 쿠폰/코인/경험치 획득\n\n[상점 아이템 관리]\n부모 공간 → "🛒 상점 관리"에서 추가/수정/삭제\n\n[PIN 잊었을 때]\nPIN 입력창 하단의 "PIN을 잊으셨나요?" 클릭\n\n[피드백 & 기능 요청]\n다중 미션, 부부 계정 공유 등 아직 구현되지 않은 기능이 필요하시거나, 개선 아이디어가 있으시면 아래 이메일로 알려주세요. 가능한 범위에서 반영하겠습니다!\n📧 shinnngg3@gmail.com',
     guideChildContent: '[미션이란?]\n매일 부모님이 주시는 할 일이에요. 수학 문제 풀기, 방 청소 등 다양해요.\n\n[코인과 쿠폰]\n- 🪙 코인: 상점에서 보상으로 바꿀 수 있어요\n- 🎟️ 쿠폰: 미션을 완료하면 받는 기본 보상\n\n[등급 올리는 법]\n미션을 완료할 때마다 경험치(EXP)가 쌓여요. 100이 되면 레벨업!\n🌱 수련생 → 🗡️ 주니어 워리어 → ⚔️ 용감한 워리어 → 🛡️ 슈퍼 워리어 → 👑 마스터 워리어\n\n[상점 이용법]\n상점 탭에서 원하는 보상을 코인으로 살 수 있어요. 레벨이 올라갈수록 더 좋은 것을 살 수 있어요!\n\n[이모지 바꾸기]\n상점에서 예쁜 이모지를 살 수 있어요. 등급이 올라갈수록 더 멋진 이모지가 나와요!',
     // Emoji
     chooseEmoji: '캐릭터 이모지 선택',
@@ -247,7 +247,7 @@ export const translations = {
     guide: 'User Guide',
     guideForParent: 'Parent Guide',
     guideForChild: 'Kid Guide',
-    guideParentContent: '[First Setup]\n1. Sign in with Google, enter family info\n2. Set parent PIN (4 digits)\n3. Add child nickname, emoji, age\n\n[Daily Use]\n1. Give your child a mission (e.g., Math 7 pages)\n2. When completed, open Parent Zone (🔒)\n3. Enter PIN, tap "Complete Daily Mission"\n4. Enter mission name (optional) → child earns coupon/coin/EXP\n\n[Manage Shop]\nParent Zone → "🛒 Manage Shop" to add/edit/delete items\n\n[Forgot PIN?]\nTap "Forgot PIN?" below the PIN entry',
+    guideParentContent: '[First Setup]\n1. Sign in with Google, enter family info\n2. Set parent PIN (4 digits)\n3. Add child nickname, emoji, age\n\n[Daily Use]\n1. Give your child a mission (e.g., Math 7 pages)\n2. When completed, open Parent Zone (🔒)\n3. Enter PIN, tap "Complete Daily Mission"\n4. Enter mission name (optional) → child earns coupon/coin/EXP\n\n[Manage Shop]\nParent Zone → "🛒 Manage Shop" to add/edit/delete items\n\n[Forgot PIN?]\nTap "Forgot PIN?" below the PIN entry\n\n[Feedback & Feature Requests]\nIf you need features not yet implemented (multiple missions, spouse account sharing, etc.) or have improvement ideas, please email me. I will incorporate them when possible!\n📧 shinnngg3@gmail.com',
     guideChildContent: '[What is a Mission?]\nA daily task from your parents. It could be math problems, cleaning your room, etc.\n\n[Coins and Coupons]\n- 🪙 Coins: Exchange for rewards at the Shop\n- 🎟️ Coupons: Basic reward for completing missions\n\n[Leveling Up]\nEvery mission gives you EXP. Reach 100 to level up!\n🌱 Trainee → 🗡️ Junior Warrior → ⚔️ Brave Warrior → 🛡️ Super Warrior → 👑 Master Warrior\n\n[Shopping]\nYou can buy rewards with coins. Higher levels unlock better items!\n\n[Changing Emoji]\nBuy pretty emojis at the shop. Higher ranks unlock cooler emojis!',
     chooseEmoji: 'Choose Your Character',
     chooseEmojiDesc: 'Buy more emojis at the shop!',
