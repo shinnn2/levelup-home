@@ -106,7 +106,54 @@ const getToday = () => {
 };
 const normalizeInventory = (inv) => Array.isArray(inv) ? inv : [];
 
-const makeEmptyPlayer = (name, age) => ({ name, age: parseInt(age) || 10, exp: 0, level: 1, coins: 0, inventory: [], purchasedOneTimeItems: [], history: [] });
+const EMOJI_CATALOG = [
+  // 무료 (레벨 1, 기본 선택 가능)
+  { id: 'e_cat', emoji: '🐱', minLevel: 1, price: 0 },
+  { id: 'e_dog', emoji: '🐶', minLevel: 1, price: 0 },
+  { id: 'e_bear', emoji: '🐻', minLevel: 1, price: 0 },
+  { id: 'e_frog', emoji: '🐸', minLevel: 1, price: 0 },
+  { id: 'e_fox', emoji: '🦊', minLevel: 1, price: 0 },
+  { id: 'e_panda', emoji: '🐼', minLevel: 1, price: 0 },
+  { id: 'e_monkey', emoji: '🐵', minLevel: 1, price: 0 },
+  { id: 'e_hamster', emoji: '🐹', minLevel: 1, price: 0 },
+  // 레벨 5+ (50 코인)
+  { id: 'e_unicorn', emoji: '🦄', minLevel: 5, price: 50 },
+  { id: 'e_lion', emoji: '🦁', minLevel: 5, price: 50 },
+  { id: 'e_tiger', emoji: '🐯', minLevel: 5, price: 50 },
+  { id: 'e_owl', emoji: '🦉', minLevel: 5, price: 50 },
+  { id: 'e_butterfly', emoji: '🦋', minLevel: 5, price: 50 },
+  { id: 'e_cherry', emoji: '🌸', minLevel: 5, price: 50 },
+  { id: 'e_rainbow', emoji: '🌈', minLevel: 5, price: 50 },
+  { id: 'e_clover', emoji: '🍀', minLevel: 5, price: 50 },
+  // 레벨 10+ (100 코인)
+  { id: 'e_dragon', emoji: '🐉', minLevel: 10, price: 100 },
+  { id: 'e_eagle', emoji: '🦅', minLevel: 10, price: 100 },
+  { id: 'e_peacock', emoji: '🦚', minLevel: 10, price: 100 },
+  { id: 'e_hibiscus', emoji: '🌺', minLevel: 10, price: 100 },
+  { id: 'e_glow_star', emoji: '🌟', minLevel: 10, price: 100 },
+  { id: 'e_art', emoji: '🎨', minLevel: 10, price: 100 },
+  { id: 'e_music', emoji: '🎵', minLevel: 10, price: 100 },
+  { id: 'e_mask', emoji: '🎭', minLevel: 10, price: 100 },
+  // 레벨 20+ (200 코인)
+  { id: 'e_crown', emoji: '👑', minLevel: 20, price: 200 },
+  { id: 'e_gem', emoji: '💎', minLevel: 20, price: 200 },
+  { id: 'e_fire', emoji: '🔥', minLevel: 20, price: 200 },
+  { id: 'e_bolt', emoji: '⚡', minLevel: 20, price: 200 },
+  { id: 'e_moon', emoji: '🌙', minLevel: 20, price: 200 },
+  { id: 'e_sun', emoji: '☀️', minLevel: 20, price: 200 },
+  { id: 'e_firework', emoji: '🎆', minLevel: 20, price: 200 },
+  { id: 'e_sparkler', emoji: '🎇', minLevel: 20, price: 200 },
+  // 레벨 50+ (500 코인) — 마스터
+  { id: 'e_trophy', emoji: '🏆', minLevel: 50, price: 500 },
+  { id: 'e_comet', emoji: '💫', minLevel: 50, price: 500 },
+  { id: 'e_planet', emoji: '🪐', minLevel: 50, price: 500 },
+  { id: 'e_galaxy', emoji: '🌌', minLevel: 50, price: 500 },
+];
+
+const FREE_EMOJIS = EMOJI_CATALOG.filter(e => e.price === 0);
+const FREE_EMOJI_IDS = FREE_EMOJIS.map(e => e.id);
+
+const makeEmptyPlayer = (name, age, emoji = '🐱') => ({ name, age: parseInt(age) || 10, exp: 0, level: 1, coins: 0, inventory: [], purchasedOneTimeItems: [], history: [], emoji, ownedEmojis: [...FREE_EMOJI_IDS] });
 
 // === ONBOARDING ===
 function Onboarding({ lang, setLang, onComplete }) {
@@ -114,9 +161,9 @@ function Onboarding({ lang, setLang, onComplete }) {
   const [step, setStep] = useState(1);
   const [familyName, setFamilyName] = useState('');
   const [pin, setPin] = useState('');
-  const [children, setChildren] = useState([{ name: '', age: '' }]);
+  const [children, setChildren] = useState([{ name: '', age: '', emoji: '🐱' }]);
 
-  const addChild = () => { if (children.length < 3) setChildren([...children, { name: '', age: '' }]); };
+  const addChild = () => { if (children.length < 3) setChildren([...children, { name: '', age: '', emoji: '🐱' }]); };
   const removeChild = (i) => setChildren(children.filter((_, idx) => idx !== i));
   const updateChild = (i, field, val) => {
     const nc = [...children];
@@ -134,7 +181,7 @@ function Onboarding({ lang, setLang, onComplete }) {
   const finish = () => {
     const items = lang === 'ko' ? DEFAULT_SHOP_ITEMS_KO : DEFAULT_SHOP_ITEMS_EN;
     const players = {};
-    children.forEach(c => { players[c.name.trim()] = makeEmptyPlayer(c.name.trim(), c.age); });
+    children.forEach(c => { players[c.name.trim()] = makeEmptyPlayer(c.name.trim(), c.age, c.emoji || '🐱'); });
     onComplete({
       familyName: familyName.trim(),
       pin,
@@ -180,12 +227,22 @@ function Onboarding({ lang, setLang, onComplete }) {
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 900, color: '#4338ca', marginBottom: 16 }}>{t.childrenLabel}</h2>
             {children.map((c, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
-                <input placeholder={t.childName} value={c.name} onChange={e => updateChild(i, 'name', e.target.value)} maxLength={15} style={{ flex: 2, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700 }} />
-                <input type="number" placeholder={t.childAge} value={c.age} onChange={e => updateChild(i, 'age', e.target.value)} min={3} max={18} style={{ flex: 1, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700, width: 60 }} />
-                {children.length > 1 && (
-                  <button onClick={() => removeChild(i)} style={{ background: '#fef2f2', border: 'none', padding: 10, borderRadius: 12, cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16} /></button>
-                )}
+              <div key={i} style={{ marginBottom: 14, padding: 12, background: '#f9fafb', borderRadius: 12 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                  <input placeholder={t.childName} value={c.name} onChange={e => updateChild(i, 'name', e.target.value)} maxLength={15} style={{ flex: 2, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700 }} />
+                  <input type="number" placeholder={t.childAge} value={c.age} onChange={e => updateChild(i, 'age', e.target.value)} min={3} max={18} style={{ flex: 1, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700, width: 60 }} />
+                  {children.length > 1 && (
+                    <button onClick={() => removeChild(i)} style={{ background: '#fef2f2', border: 'none', padding: 10, borderRadius: 12, cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16} /></button>
+                  )}
+                </div>
+                <div>
+                  <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', marginBottom: 6 }}>{t.chooseEmoji}</p>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {FREE_EMOJIS.map(e => (
+                      <button key={e.id} onClick={() => updateChild(i, 'emoji', e.emoji)} style={{ padding: '6px 8px', fontSize: 22, background: c.emoji === e.emoji ? '#e0e7ff' : '#fff', border: c.emoji === e.emoji ? '2px solid #4f46e5' : '1px solid #e5e7eb', borderRadius: 10, cursor: 'pointer' }}>{e.emoji}</button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ))}
             {children.length < 3 && (
@@ -273,6 +330,10 @@ export default function App() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showRankGuide, setShowRankGuide] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [guideTab, setGuideTab] = useState('parent');
+  const [showEmojiShop, setShowEmojiShop] = useState(false);
+  const [missionNameInput, setMissionNameInput] = useState('');
   const [editingItem, setEditingItem] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -363,8 +424,10 @@ export default function App() {
     let nExp = p.exp + 20, nLv = p.level, nCoins = p.coins + 50, leveled = false;
     if (nExp >= 100) { nExp = 0; nLv += 1; leveled = true; }
     else if (!isFirstEverMission) triggerAlert(t.missionComplete);
-    const entry = { id: Date.now(), date: todayDate, type: 'daily', description: t.completeDailyMission, rewards: t.missionRewards, levelAfter: nLv };
-    updatePlayer(familyData.activeUser, (up) => ({ ...up, inventory: [...inv, { name: t.completeDailyMission, icon: '🎮' }], exp: nExp, level: nLv, coins: nCoins, history: [...hist, entry] }));
+    const missionName = (missionNameInput.trim() || t.missionDefaultName);
+    const entry = { id: Date.now(), date: todayDate, type: 'daily', description: missionName, rewards: t.missionRewards, levelAfter: nLv };
+    updatePlayer(familyData.activeUser, (up) => ({ ...up, inventory: [...inv, { name: missionName, icon: '🎮' }], exp: nExp, level: nLv, coins: nCoins, history: [...hist, entry] }));
+    setMissionNameInput('');
     setShowParentModal(false);
     if (isFirstEverMission) {
       playSound('levelUp');
@@ -595,9 +658,10 @@ export default function App() {
           {playerNames.map(n => {
             const g = getTitle(familyData.players[n].level, t).gear;
             const act = activeUser === n;
+            const emoji = familyData.players[n].emoji || '🐱';
             return (
               <button key={n} onClick={() => saveFamilyData({ ...familyData, activeUser: n })} style={{ padding: '8px 14px', borderRadius: '14px 14px 0 0', fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, background: act ? '#4f46e5' : '#e0e7ff', color: act ? '#fff' : '#818cf8' }}>
-                {n} {g && <span>{g}</span>} ({familyData.players[n].age})
+                <span style={{ fontSize: 14 }}>{emoji}</span> {n} {g && <span>{g}</span>} ({familyData.players[n].age})
               </button>
             );
           })}
@@ -606,6 +670,10 @@ export default function App() {
 
       <section style={{ padding: 16 }}>
         <div style={{ background: '#fff', borderRadius: 24, padding: 20, boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 14 }}>
+            <button onClick={() => setShowEmojiShop(true)} style={{ fontSize: 56, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }} title={t.changeEmoji}>{cur.emoji || '🐱'}</button>
+            <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 700, marginTop: 4 }}>{t.changeEmoji} ✨</div>
+          </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
             <button onClick={() => setShowRankGuide(true)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
               <span style={{ fontSize: 9, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -643,18 +711,22 @@ export default function App() {
               <div style={{ height: '100%', background: 'linear-gradient(90deg, #818cf8, #a78bfa)', borderRadius: 50, transition: 'width 0.5s', width: `${cur.exp}%` }} />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', background: '#fffbeb', padding: '8px 16px', borderRadius: 16, border: '1px solid #fde68a', width: 'fit-content' }}>
+          <button onClick={() => { setCurrentTab('shop'); triggerAlert(t.coinTapHint); }} style={{ display: 'flex', alignItems: 'center', background: '#fffbeb', padding: '8px 16px', borderRadius: 16, border: '1px solid #fde68a', cursor: 'pointer' }}>
             <span style={{ fontSize: 17, marginRight: 8 }}>🪙</span><span style={{ fontWeight: 900, color: '#92400e' }}>{cur.coins}</span>
-          </div>
-          <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 10, background: isTodayDone ? '#f0fdf4' : '#fffbeb', border: `1px solid ${isTodayDone ? '#bbf7d0' : '#fde68a'}` }}>
+            <span style={{ marginLeft: 6, fontSize: 9, color: '#b45309', fontWeight: 700 }}>→ 🛒</span>
+          </button>
+          <button onClick={() => !isTodayDone && triggerAlert(t.missionTapHint)} style={{ width: '100%', marginTop: 12, padding: '10px 14px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 10, background: isTodayDone ? '#f0fdf4' : '#fffbeb', border: `1px solid ${isTodayDone ? '#bbf7d0' : '#fde68a'}`, cursor: 'pointer' }}>
             <span style={{ fontSize: 16 }}>{isTodayDone ? '✅' : '⏳'}</span>
             <span style={{ fontSize: 12, fontWeight: 800, color: isTodayDone ? '#16a34a' : '#b45309' }}>{isTodayDone ? t.todaysMissionDone : t.todaysMissionWaiting}</span>
-          </div>
+          </button>
         </div>
       </section>
 
-      <div style={{ padding: '0 16px 8px', display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={() => setShowPinModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: '#d1d5db', fontSize: 10, fontWeight: 700 }}>
+      <div style={{ padding: '0 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button onClick={() => setShowGuide(true)} style={{ background: '#eef2ff', border: '1px solid #c7d2fe', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: '#4f46e5', fontSize: 11, fontWeight: 800, padding: '6px 12px', borderRadius: 14 }}>
+          ❓ {t.guide}
+        </button>
+        <button onClick={() => setShowPinModal(true)} style={{ background: '#fff', border: '1px solid #c7d2fe', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: '#4f46e5', fontSize: 11, fontWeight: 800, padding: '6px 12px', borderRadius: 14 }}>
           <Settings size={14} />{t.parentZone}
         </button>
       </div>
@@ -808,6 +880,18 @@ export default function App() {
                   { l: '-🎟️', c: '#ef4444', a: () => handleManualCoupon(-1, '-1 🎟️') },
                 ].map((b, i) => <button key={i} onClick={b.a} style={{ padding: '10px 0', background: '#fff', color: b.c, borderRadius: 12, fontWeight: 900, fontSize: 11, border: '1px solid #e5e7eb', cursor: 'pointer' }}>{b.l}</button>)}
               </div>
+              {!isTodayDone && (
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#b45309', marginBottom: 4 }}>{t.missionNameLabel}</label>
+                  <input
+                    value={missionNameInput}
+                    onChange={e => setMissionNameInput(e.target.value)}
+                    placeholder={t.missionNamePlaceholder}
+                    maxLength={40}
+                    style={{ width: '100%', padding: '8px 10px', fontSize: 12, border: '1px solid #fde68a', borderRadius: 10, outline: 'none', boxSizing: 'border-box', fontWeight: 600, background: '#fff' }}
+                  />
+                </div>
+              )}
               <button onClick={handleDailyMission} disabled={isTodayDone} style={{ width: '100%', background: isTodayDone ? '#f0fdf4' : '#fff', padding: 11, borderRadius: 14, border: `1px solid ${isTodayDone ? '#86efac' : '#e0e7ff'}`, cursor: isTodayDone ? 'default' : 'pointer', display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
                 <div style={{ width: 36, height: 36, background: isTodayDone ? '#dcfce7' : '#eef2ff', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{isTodayDone ? '✅' : '🌟'}</div>
                 <span style={{ fontWeight: 900, fontSize: 12, color: isTodayDone ? '#16a34a' : '#4338ca', textAlign: 'left' }}>{isTodayDone ? t.missionDone : t.completeDailyMission}</span>
@@ -896,6 +980,101 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Guide Modal */}
+      {showGuide && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(8px)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 400, width: '100%', padding: 22, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4338ca', marginBottom: 14, textAlign: 'center' }}>📘 {t.guide}</h3>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+              <button onClick={() => setGuideTab('parent')} style={{ flex: 1, padding: '8px 0', background: guideTab === 'parent' ? '#4f46e5' : '#f3f4f6', color: guideTab === 'parent' ? '#fff' : '#6b7280', borderRadius: 10, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 12 }}>👨‍👩 {t.guideForParent}</button>
+              <button onClick={() => setGuideTab('child')} style={{ flex: 1, padding: '8px 0', background: guideTab === 'child' ? '#4f46e5' : '#f3f4f6', color: guideTab === 'child' ? '#fff' : '#6b7280', borderRadius: 10, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 12 }}>🧒 {t.guideForChild}</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', background: '#f9fafb', padding: 14, borderRadius: 12, marginBottom: 12 }}>
+              <p style={{ fontSize: 12, color: '#374151', fontWeight: 600, lineHeight: 1.8, whiteSpace: 'pre-line', margin: 0 }}>
+                {guideTab === 'parent' ? t.guideParentContent : t.guideChildContent}
+              </p>
+            </div>
+            <button onClick={() => setShowGuide(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 12, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Emoji Shop Modal */}
+      {showEmojiShop && (() => {
+        const owned = cur.ownedEmojis || FREE_EMOJI_IDS;
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(8px)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 28, maxWidth: 420, width: '100%', padding: 22, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4338ca', marginBottom: 4, textAlign: 'center' }}>✨ {t.emojiShop}</h3>
+              <p style={{ fontSize: 11, color: '#6b7280', textAlign: 'center', marginBottom: 12, fontWeight: 600 }}>{t.chooseEmojiDesc}</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 14, padding: '8px 14px', background: '#eef2ff', borderRadius: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, color: '#4338ca' }}>{activeUser}:</span>
+                <span style={{ fontSize: 24 }}>{cur.emoji || '🐱'}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#6b7280' }}>Lv {cur.level}</span>
+                <span style={{ fontSize: 10, fontWeight: 800, color: '#92400e' }}>🪙 {cur.coins}</span>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12 }}>
+                {[1, 5, 10, 20, 50].map(levelTier => {
+                  const tierEmojis = EMOJI_CATALOG.filter(e => e.minLevel === levelTier);
+                  if (tierEmojis.length === 0) return null;
+                  return (
+                    <div key={levelTier} style={{ marginBottom: 12 }}>
+                      <h4 style={{ fontSize: 11, fontWeight: 900, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+                        {levelTier === 1 ? '🎁 Free' : `Lv ${levelTier}+ · 🪙 ${tierEmojis[0].price}`}
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                        {tierEmojis.map(e => {
+                          const isOwned = owned.includes(e.id);
+                          const isActive = cur.emoji === e.emoji;
+                          const canUnlock = cur.level >= e.minLevel;
+                          const canBuy = canUnlock && !isOwned && cur.coins >= e.price;
+                          return (
+                            <button
+                              key={e.id}
+                              onClick={() => {
+                                if (isOwned) {
+                                  updatePlayer(activeUser, up => ({ ...up, emoji: e.emoji }));
+                                  setShowEmojiShop(false);
+                                } else if (canBuy) {
+                                  updatePlayer(activeUser, up => ({
+                                    ...up,
+                                    coins: up.coins - e.price,
+                                    ownedEmojis: [...(up.ownedEmojis || FREE_EMOJI_IDS), e.id],
+                                    emoji: e.emoji,
+                                  }));
+                                  playSound('coupon');
+                                  triggerAlert(`${t.emojiPurchased} ${e.emoji}`);
+                                }
+                              }}
+                              disabled={!isOwned && !canBuy}
+                              style={{
+                                padding: 8,
+                                background: isActive ? '#e0e7ff' : isOwned ? '#fff' : canBuy ? '#fff' : '#f9fafb',
+                                border: isActive ? '2px solid #4f46e5' : isOwned ? '1px solid #c7d2fe' : '1px solid #e5e7eb',
+                                borderRadius: 10,
+                                cursor: isOwned || canBuy ? 'pointer' : 'not-allowed',
+                                opacity: !canUnlock ? 0.4 : 1,
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                              }}
+                            >
+                              <span style={{ fontSize: 22 }}>{e.emoji}</span>
+                              <span style={{ fontSize: 8, fontWeight: 800, color: isActive ? '#4f46e5' : isOwned ? '#4338ca' : canUnlock ? '#92400e' : '#9ca3af' }}>
+                                {isActive ? t.emojiUse : isOwned ? t.emojiOwn : !canUnlock ? `${t.emojiLocked}${e.minLevel}` : `🪙 ${e.price}`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={() => setShowEmojiShop(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 12, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Reset Confirmation Modal */}
       {showResetConfirm && (
