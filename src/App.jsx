@@ -117,7 +117,7 @@ const EMOJI_CATALOG = [
   { id: 'e_monkey', emoji: '🐵', minLevel: 1, price: 0 },
   { id: 'e_hamster', emoji: '🐹', minLevel: 1, price: 0 },
   // 레벨 5+ (50 코인)
-  { id: 'e_unicorn', emoji: '🦄', minLevel: 5, price: 50 },
+  { id: 'e_star', emoji: '⭐', minLevel: 5, price: 50 },
   { id: 'e_lion', emoji: '🦁', minLevel: 5, price: 50 },
   { id: 'e_tiger', emoji: '🐯', minLevel: 5, price: 50 },
   { id: 'e_owl', emoji: '🦉', minLevel: 5, price: 50 },
@@ -145,6 +145,7 @@ const EMOJI_CATALOG = [
   { id: 'e_sparkler', emoji: '🎇', minLevel: 20, price: 200 },
   // 레벨 50+ (500 코인) — 마스터
   { id: 'e_trophy', emoji: '🏆', minLevel: 50, price: 500 },
+  { id: 'e_unicorn', emoji: '🦄', minLevel: 50, price: 500 },
   { id: 'e_comet', emoji: '💫', minLevel: 50, price: 500 },
   { id: 'e_planet', emoji: '🪐', minLevel: 50, price: 500 },
   { id: 'e_galaxy', emoji: '🌌', minLevel: 50, price: 500 },
@@ -228,12 +229,19 @@ function Onboarding({ lang, setLang, onComplete }) {
             <h2 style={{ fontSize: 20, fontWeight: 900, color: '#4338ca', marginBottom: 16 }}>{t.childrenLabel}</h2>
             {children.map((c, i) => (
               <div key={i} style={{ marginBottom: 14, padding: 12, background: '#f9fafb', borderRadius: 12 }}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
-                  <input placeholder={t.childName} value={c.name} onChange={e => updateChild(i, 'name', e.target.value)} maxLength={15} style={{ flex: 2, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700 }} />
-                  <input type="number" placeholder={t.childAge} value={c.age} onChange={e => updateChild(i, 'age', e.target.value)} min={3} max={18} style={{ flex: 1, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700, width: 60 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>
+                    {lang === 'ko' ? `아이 ${i + 1}` : `Child ${i + 1}`}
+                  </span>
                   {children.length > 1 && (
-                    <button onClick={() => removeChild(i)} style={{ background: '#fef2f2', border: 'none', padding: 10, borderRadius: 12, cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16} /></button>
+                    <button onClick={() => removeChild(i)} style={{ background: '#fef2f2', border: 'none', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700 }}>
+                      <Trash2 size={12} /> {t.removeChild}
+                    </button>
                   )}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <input placeholder={t.childName} value={c.name} onChange={e => updateChild(i, 'name', e.target.value)} maxLength={15} style={{ flex: 2, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700, minWidth: 0, boxSizing: 'border-box' }} />
+                  <input type="number" placeholder={t.childAge} value={c.age} onChange={e => updateChild(i, 'age', e.target.value)} min={3} max={18} style={{ width: 70, padding: '12px', fontSize: 14, border: '2px solid #e5e7eb', borderRadius: 12, outline: 'none', fontWeight: 700, boxSizing: 'border-box' }} />
                 </div>
                 <div>
                   <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', marginBottom: 6 }}>{t.chooseEmoji}</p>
@@ -333,7 +341,7 @@ export default function App() {
   const [showGuide, setShowGuide] = useState(false);
   const [guideTab, setGuideTab] = useState('parent');
   const [showEmojiShop, setShowEmojiShop] = useState(false);
-  const [missionNameInput, setMissionNameInput] = useState('');
+  const [missionNameInputs, setMissionNameInputs] = useState({});
   const [editingItem, setEditingItem] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -424,10 +432,10 @@ export default function App() {
     let nExp = p.exp + 20, nLv = p.level, nCoins = p.coins + 50, leveled = false;
     if (nExp >= 100) { nExp = 0; nLv += 1; leveled = true; }
     else if (!isFirstEverMission) triggerAlert(t.missionComplete);
-    const missionName = (missionNameInput.trim() || t.missionDefaultName);
+    const missionName = ((missionNameInputs[familyData.activeUser] || '').trim() || t.missionDefaultName);
     const entry = { id: Date.now(), date: todayDate, type: 'daily', description: missionName, rewards: t.missionRewards, levelAfter: nLv };
     updatePlayer(familyData.activeUser, (up) => ({ ...up, inventory: [...inv, { name: missionName, icon: '🎮' }], exp: nExp, level: nLv, coins: nCoins, history: [...hist, entry] }));
-    setMissionNameInput('');
+    setMissionNameInputs(prev => ({ ...prev, [familyData.activeUser]: '' }));
     setShowParentModal(false);
     if (isFirstEverMission) {
       playSound('levelUp');
@@ -711,20 +719,36 @@ export default function App() {
               <div style={{ height: '100%', background: 'linear-gradient(90deg, #818cf8, #a78bfa)', borderRadius: 50, transition: 'width 0.5s', width: `${cur.exp}%` }} />
             </div>
           </div>
-          <button onClick={() => { setCurrentTab('shop'); triggerAlert(t.coinTapHint); }} style={{ display: 'flex', alignItems: 'center', background: '#fffbeb', padding: '8px 16px', borderRadius: 16, border: '1px solid #fde68a', cursor: 'pointer' }}>
+          <button onClick={() => { setCurrentTab('shop'); triggerAlert(t.coinTapHint); setTimeout(() => window.scrollTo({ top: document.body.scrollHeight * 0.3, behavior: 'smooth' }), 100); }} style={{ display: 'flex', alignItems: 'center', background: '#fffbeb', padding: '8px 16px', borderRadius: 16, border: '1px solid #fde68a', cursor: 'pointer' }}>
             <span style={{ fontSize: 17, marginRight: 8 }}>🪙</span><span style={{ fontWeight: 900, color: '#92400e' }}>{cur.coins}</span>
             <span style={{ marginLeft: 6, fontSize: 9, color: '#b45309', fontWeight: 700 }}>→ 🛒</span>
           </button>
-          <button onClick={() => !isTodayDone && triggerAlert(t.missionTapHint)} style={{ width: '100%', marginTop: 12, padding: '10px 14px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 10, background: isTodayDone ? '#f0fdf4' : '#fffbeb', border: `1px solid ${isTodayDone ? '#bbf7d0' : '#fde68a'}`, cursor: 'pointer' }}>
-            <span style={{ fontSize: 16 }}>{isTodayDone ? '✅' : '⏳'}</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: isTodayDone ? '#16a34a' : '#b45309' }}>{isTodayDone ? t.todaysMissionDone : t.todaysMissionWaiting}</span>
-          </button>
+          <div style={{ marginTop: 12 }}>
+            {!isTodayDone ? (
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#b45309', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>⏳ {t.todaysMissionWaiting}</label>
+                <input
+                  value={missionNameInputs[activeUser] || ''}
+                  onChange={e => setMissionNameInputs(prev => ({ ...prev, [activeUser]: e.target.value }))}
+                  placeholder={t.missionNamePlaceholder}
+                  maxLength={40}
+                  style={{ width: '100%', padding: '10px 14px', fontSize: 13, border: '1px solid #fde68a', borderRadius: 14, outline: 'none', boxSizing: 'border-box', fontWeight: 700, background: '#fffbeb', color: '#78350f' }}
+                />
+                <p style={{ fontSize: 10, color: '#b45309', fontWeight: 600, marginTop: 6, lineHeight: 1.5 }}>{t.missionTapHint}</p>
+              </div>
+            ) : (
+              <div style={{ padding: '10px 14px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 10, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <span style={{ fontSize: 16 }}>✅</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>{t.todaysMissionDone}</span>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
       <div style={{ padding: '0 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button onClick={() => setShowGuide(true)} style={{ background: '#eef2ff', border: '1px solid #c7d2fe', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: '#4f46e5', fontSize: 11, fontWeight: 800, padding: '6px 12px', borderRadius: 14 }}>
-          ❓ {t.guide}
+          📘 {t.guide}
         </button>
         <button onClick={() => setShowPinModal(true)} style={{ background: '#fff', border: '1px solid #c7d2fe', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: '#4f46e5', fontSize: 11, fontWeight: 800, padding: '6px 12px', borderRadius: 14 }}>
           <Settings size={14} />{t.parentZone}
@@ -880,18 +904,6 @@ export default function App() {
                   { l: '-🎟️', c: '#ef4444', a: () => handleManualCoupon(-1, '-1 🎟️') },
                 ].map((b, i) => <button key={i} onClick={b.a} style={{ padding: '10px 0', background: '#fff', color: b.c, borderRadius: 12, fontWeight: 900, fontSize: 11, border: '1px solid #e5e7eb', cursor: 'pointer' }}>{b.l}</button>)}
               </div>
-              {!isTodayDone && (
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#b45309', marginBottom: 4 }}>{t.missionNameLabel}</label>
-                  <input
-                    value={missionNameInput}
-                    onChange={e => setMissionNameInput(e.target.value)}
-                    placeholder={t.missionNamePlaceholder}
-                    maxLength={40}
-                    style={{ width: '100%', padding: '8px 10px', fontSize: 12, border: '1px solid #fde68a', borderRadius: 10, outline: 'none', boxSizing: 'border-box', fontWeight: 600, background: '#fff' }}
-                  />
-                </div>
-              )}
               <button onClick={handleDailyMission} disabled={isTodayDone} style={{ width: '100%', background: isTodayDone ? '#f0fdf4' : '#fff', padding: 11, borderRadius: 14, border: `1px solid ${isTodayDone ? '#86efac' : '#e0e7ff'}`, cursor: isTodayDone ? 'default' : 'pointer', display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
                 <div style={{ width: 36, height: 36, background: isTodayDone ? '#dcfce7' : '#eef2ff', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{isTodayDone ? '✅' : '🌟'}</div>
                 <span style={{ fontWeight: 900, fontSize: 12, color: isTodayDone ? '#16a34a' : '#4338ca', textAlign: 'left' }}>{isTodayDone ? t.missionDone : t.completeDailyMission}</span>
@@ -984,13 +996,13 @@ export default function App() {
       {/* Guide Modal */}
       {showGuide && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(8px)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 400, width: '100%', padding: 22, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 400, width: '100%', padding: 22, maxHeight: '85vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: 18, fontWeight: 900, color: '#4338ca', marginBottom: 14, textAlign: 'center' }}>📘 {t.guide}</h3>
             <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
               <button onClick={() => setGuideTab('parent')} style={{ flex: 1, padding: '8px 0', background: guideTab === 'parent' ? '#4f46e5' : '#f3f4f6', color: guideTab === 'parent' ? '#fff' : '#6b7280', borderRadius: 10, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 12 }}>👨‍👩 {t.guideForParent}</button>
               <button onClick={() => setGuideTab('child')} style={{ flex: 1, padding: '8px 0', background: guideTab === 'child' ? '#4f46e5' : '#f3f4f6', color: guideTab === 'child' ? '#fff' : '#6b7280', borderRadius: 10, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 12 }}>🧒 {t.guideForChild}</button>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', background: '#f9fafb', padding: 14, borderRadius: 12, marginBottom: 12 }}>
+            <div style={{ background: '#f9fafb', padding: 14, borderRadius: 12, marginBottom: 12 }}>
               <p style={{ fontSize: 12, color: '#374151', fontWeight: 600, lineHeight: 1.8, whiteSpace: 'pre-line', margin: 0 }}>
                 {guideTab === 'parent' ? t.guideParentContent : t.guideChildContent}
               </p>
