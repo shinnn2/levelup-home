@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Home, ShoppingBag, Check, Gift, Settings, Clock, LogOut, Globe, Trash2, Plus, Edit2 } from 'lucide-react';
 import { auth, db, googleProvider } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, reauthenticateWithPopup } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { translations, detectLanguage } from './i18n';
 
@@ -333,8 +333,6 @@ export default function App() {
   const [showParentModal, setShowParentModal] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showForgotPinModal, setShowForgotPinModal] = useState(false);
-  const [newPinInput, setNewPinInput] = useState('');
-  const [pinResetVerified, setPinResetVerified] = useState(false);
   const [showShopManager, setShowShopManager] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
@@ -856,45 +854,27 @@ export default function App() {
       {/* Forgot PIN Modal */}
       {showForgotPinModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.65)', backdropFilter: 'blur(12px)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 340, width: '100%', padding: 24, textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>{pinResetVerified ? '🔑' : '🔐'}</div>
-            <h3 style={{ fontSize: 17, fontWeight: 900, color: '#4338ca', marginBottom: 6 }}>{t.pinResetConfirmTitle}</h3>
-            <p style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, lineHeight: 1.5, marginBottom: 14 }}>
-              {pinResetVerified ? t.pinResetStep2Desc : t.pinResetConfirmDesc}
-            </p>
-
-            {!pinResetVerified ? (
-              <>
-                <button onClick={async () => {
-                  try {
-                    await reauthenticateWithPopup(auth.currentUser, googleProvider);
-                    setPinResetVerified(true);
-                  } catch (e) {
-                    console.error('Reauth failed:', e);
-                    triggerAlert(t.pinResetFailed);
-                  }
-                }} style={{ width: '100%', padding: '14px 0', background: '#4f46e5', color: '#fff', borderRadius: 14, fontWeight: 800, border: 'none', cursor: 'pointer', marginBottom: 10, fontSize: 13 }}>
-                  {t.pinResetVerify}
-                </button>
-                <button onClick={() => { setShowForgotPinModal(false); setNewPinInput(''); setPinResetVerified(false); }} style={{ width: '100%', padding: '12px 0', background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.cancel}</button>
-              </>
-            ) : (
-              <>
-                <input type="password" inputMode="numeric" maxLength="4" autoFocus value={newPinInput} onChange={e => setNewPinInput(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={{ width: '100%', textAlign: 'center', fontSize: 24, letterSpacing: '0.6em', fontWeight: 900, background: '#f9fafb', border: '2px solid #e5e7eb', borderRadius: 14, padding: '12px 0', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => { setShowForgotPinModal(false); setNewPinInput(''); setPinResetVerified(false); }} style={{ flex: 1, padding: '12px 0', background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.cancel}</button>
-                  <button onClick={() => {
-                    if (newPinInput.length === 4 && /^\d{4}$/.test(newPinInput)) {
-                      saveFamilyData({ ...familyData, pin: newPinInput });
-                      setShowForgotPinModal(false);
-                      setNewPinInput('');
-                      setPinResetVerified(false);
-                      triggerAlert(t.pinResetSuccess);
-                    }
-                  }} disabled={newPinInput.length !== 4} style={{ flex: 1, padding: '12px 0', background: newPinInput.length === 4 ? '#4f46e5' : '#c7d2fe', color: '#fff', borderRadius: 14, fontWeight: 800, border: 'none', cursor: newPinInput.length === 4 ? 'pointer' : 'not-allowed' }}>{t.save}</button>
-                </div>
-              </>
-            )}
+          <div style={{ background: '#fff', borderRadius: 28, maxWidth: 360, width: '100%', padding: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>📧</div>
+            <h3 style={{ fontSize: 17, fontWeight: 900, color: '#4338ca', marginBottom: 10 }}>{t.pinResetConfirmTitle}</h3>
+            <p style={{ fontSize: 12, color: '#4b5563', fontWeight: 600, lineHeight: 1.7, marginBottom: 14, whiteSpace: 'pre-line', textAlign: 'left' }}>{t.pinResetConfirmDesc}</p>
+            <div style={{ background: '#eef2ff', padding: '12px 16px', borderRadius: 12, marginBottom: 12, border: '1px solid #c7d2fe' }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#4338ca', letterSpacing: 0.5 }}>{t.pinResetEmail}</span>
+            </div>
+            <button onClick={() => {
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(t.pinResetEmail).then(() => {
+                  triggerAlert(t.pinResetEmailCopied);
+                }).catch(() => {
+                  triggerAlert(t.pinResetEmail);
+                });
+              } else {
+                triggerAlert(t.pinResetEmail);
+              }
+            }} style={{ width: '100%', padding: '12px 0', background: '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>
+              {t.pinResetCopyEmail}
+            </button>
+            <button onClick={() => setShowForgotPinModal(false)} style={{ width: '100%', padding: '12px 0', background: '#f3f4f6', borderRadius: 12, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
           </div>
         </div>
       )}
