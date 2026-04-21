@@ -93,7 +93,10 @@ export const translations = {
     // Forgot PIN
     forgotPin: 'PIN을 잊으셨나요?',
     pinResetConfirmTitle: 'PIN 재설정',
-    pinResetConfirmDesc: 'Google 계정 소유자 확인을 통해 PIN을 재설정합니다. 새 PIN을 입력하세요.',
+    pinResetConfirmDesc: '보안을 위해 먼저 Google 계정 재인증이 필요합니다. 인증 완료 후 새 PIN을 설정할 수 있어요.',
+    pinResetStep2Desc: '인증 완료! 이제 새 PIN 4자리를 입력하세요.',
+    pinResetVerify: '🔐 Google 계정으로 인증하기',
+    pinResetFailed: '인증에 실패했습니다. 다시 시도해주세요.',
     newPin: '새 PIN',
     pinResetSuccess: 'PIN이 재설정되었습니다!',
     // Mission customization
@@ -236,7 +239,10 @@ export const translations = {
     spouseNoticeDesc: 'For now, both parents need to log in with the same Google account to share data. (e.g., Mom logs in with Dad\'s account)\n\nComing soon: An invite code feature will let each parent use their own account while sharing one family.',
     forgotPin: 'Forgot your PIN?',
     pinResetConfirmTitle: 'Reset PIN',
-    pinResetConfirmDesc: 'Verifying your Google account ownership. Enter a new PIN.',
+    pinResetConfirmDesc: 'For security, Google account re-authentication is required first. After verification, you can set a new PIN.',
+    pinResetStep2Desc: 'Verified! Now enter a new 4-digit PIN.',
+    pinResetVerify: '🔐 Verify with Google',
+    pinResetFailed: 'Verification failed. Please try again.',
     newPin: 'New PIN',
     pinResetSuccess: 'PIN has been reset!',
     missionNameLabel: "Today's Mission Name (optional)",
