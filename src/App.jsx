@@ -376,21 +376,11 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
-  // 데이터 로드 후 홈 화면 추가 안내 확인
+  // 홈 화면 추가 안내 — 팝업은 제거됨. 설치 방법은 사용 설명서에 포함.
+  // (useEffect 유지하되 실제 팝업은 띄우지 않음)
   useEffect(() => {
-    if (!familyData || !dataFromServer) return;
-    // PWA로 이미 실행 중이면 안 보여줌
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    if (isStandalone) return;
-    // 영구 dismiss (이미 추가했어요)
-    const dismissed = localStorage.getItem('levelup_install_dismissed');
-    if (dismissed) return;
-    // 임시 dismiss (나중에) - 3일간 안 보여줌
-    const snoozedUntil = localStorage.getItem('levelup_install_snoozed_until');
-    if (snoozedUntil && Date.now() < parseInt(snoozedUntil)) return;
-    // 3초 후에 자연스럽게 띄우기
-    const t = setTimeout(() => setShowInstallPrompt(true), 3000);
-    return () => clearTimeout(t);
+    // 팝업 비활성화: 사용 설명서에서 안내
+    return;
   }, [familyData, dataFromServer]);
 
   const saveFamilyData = useCallback(async (newData) => {
