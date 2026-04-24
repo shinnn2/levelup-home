@@ -182,11 +182,17 @@ function Onboarding({ lang, setLang, onComplete }) {
   const finish = () => {
     const items = lang === 'ko' ? DEFAULT_SHOP_ITEMS_KO : DEFAULT_SHOP_ITEMS_EN;
     const players = {};
-    children.forEach(c => { players[c.name.trim()] = makeEmptyPlayer(c.name.trim(), c.age, c.emoji || '🐱'); });
+    const playerOrder = [];
+    children.forEach(c => { 
+      const trimmedName = c.name.trim();
+      players[trimmedName] = makeEmptyPlayer(trimmedName, c.age, c.emoji || '🐱');
+      playerOrder.push(trimmedName);
+    });
     onComplete({
       familyName: familyName.trim(),
       pin,
       players,
+      playerOrder,
       activeUser: children[0].name.trim(),
       shopItems: items,
       language: lang,
@@ -464,6 +470,16 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todayDate, dataFromServer]);
 
+  // 기존 사용자 마이그레이션: playerOrder가 없으면 현재 키 순서로 저장 (한번만)
+  useEffect(() => {
+    if (!familyData || !dataFromServer) return;
+    if (!familyData.playerOrder || familyData.playerOrder.length === 0) {
+      const order = Object.keys(familyData.players || {}).sort();
+      saveFamilyData({ ...familyData, playerOrder: order });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataFromServer]);
+
   const handleLogin = async () => {
     try { await signInWithPopup(auth, googleProvider); }
     catch (e) { console.error(e); triggerAlert('Login failed'); }
@@ -706,7 +722,9 @@ export default function App() {
   const curInv = normalizeInventory(cur.inventory);
   const curHist = cur.history || [];
   const isTodayDone = curHist.some(h => h.date === todayDate && h.type === 'daily');
-  const playerNames = Object.keys(familyData.players);
+  const playerNames = familyData.playerOrder && familyData.playerOrder.length > 0
+    ? familyData.playerOrder.filter(n => familyData.players[n])
+    : Object.keys(familyData.players).sort();
   const shopItems = familyData.shopItems || [];
 
   return (
@@ -1150,7 +1168,13 @@ export default function App() {
         };
         const addMission = () => {
           if (!canAddMission()) { triggerAlert(t.maxMissionsReached); return; }
-          setEditingMissions([...editingMissions, { id: Date.now() + Math.random(), name: '', reward: '', coins: 30, repeat: false, completed: false, assignedTo: 'all' }]);
+          const newId = Date.now() + Math.random();
+          setEditingMissions([...editingMissions, { id: newId, name: '', reward: '', coins: 30, repeat: false, completed: false, assignedTo: 'all' }]);
+          // 렌더 후 스크롤
+          setTimeout(() => {
+            const el = document.getElementById(`mission-card-${newId}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 80);
         };
         const updateMission = (id, field, value) => {
           setEditingMissions(editingMissions.map(m => m.id === id ? { ...m, [field]: value } : m));
@@ -1194,7 +1218,12 @@ export default function App() {
         };
         const addMissionFromTemplate = (templateName) => {
           if (!canAddMission()) { triggerAlert(t.maxMissionsReached); return; }
-          setEditingMissions([...editingMissions, { id: Date.now() + Math.random(), name: templateName, reward: '', coins: 30, repeat: true, completed: false, assignedTo: 'all' }]);
+          const newId = Date.now() + Math.random();
+          setEditingMissions([...editingMissions, { id: newId, name: templateName, reward: '', coins: 30, repeat: true, completed: false, assignedTo: 'all' }]);
+          setTimeout(() => {
+            const el = document.getElementById(`mission-card-${newId}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 80);
         };
         const missionTemplates = [
           { icon: '🧮', name: t.templateMath },
@@ -1235,7 +1264,7 @@ export default function App() {
               <button onClick={addMission} disabled={!canAddMission()} style={{ width: '100%', padding: 10, background: !canAddMission() ? '#e5e7eb' : '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: !canAddMission() ? 'not-allowed' : 'pointer', marginBottom: 12, fontSize: 13 }}>{t.addMission}</button>
               
               {editingMissions.map((m, idx) => (
-                <div key={m.id} style={{ background: '#f9fafb', padding: 12, borderRadius: 14, marginBottom: 10, border: '1px solid #e5e7eb' }}>
+                <div key={m.id} id={`mission-card-${m.id}`} style={{ background: '#f9fafb', padding: 12, borderRadius: 14, marginBottom: 10, border: '1px solid #e5e7eb' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>#{idx + 1}</span>
                     <button onClick={() => removeMission(m.id)} style={{ background: '#fef2f2', border: 'none', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', color: '#ef4444', fontSize: 10, fontWeight: 700 }}>
