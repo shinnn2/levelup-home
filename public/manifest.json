@@ -1,7 +1,7 @@
 {
-  "name": "우리집 레벨업",
-  "short_name": "레벨업",
-  "description": "가족을 위한 미션 & 보상 앱",
+  "name": "LevelUp Kids",
+  "short_name": "LevelUp Kids",
+  "description": "Family habit builder with missions & rewards",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#eef2ff",
