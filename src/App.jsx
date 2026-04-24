@@ -340,28 +340,6 @@ export default function App() {
     return () => { document.removeEventListener('visibilitychange', handleVis); clearInterval(interval); };
   }, [todayDate]);
 
-  // 날짜 바뀌면 미션 리셋: repeat:true는 completed=false, repeat:false는 제거
-  useEffect(() => {
-    if (!familyData || !dataFromServer) return;
-    const missions = familyData.dailyMissions || [];
-    if (missions.length === 0) return;
-    const lastResetDate = familyData.missionsLastReset || '';
-    if (lastResetDate === todayDate) return;
-    const newMissions = missions
-      .filter(m => m.repeat)
-      .map(m => ({ ...m, completed: false, completedAt: null }));
-    saveFamilyData({ ...familyData, dailyMissions: newMissions, missionsLastReset: todayDate });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todayDate, dataFromServer]);
-
-  // Mission Manager 열 때 기존 미션 복사
-  useEffect(() => {
-    if (showMissionManager && familyData) {
-      setEditingMissions((familyData.dailyMissions || []).map(m => ({ ...m })));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showMissionManager]);
-
   const [currentTab, setCurrentTab] = useState('bag');
   const [showConfetti, setShowConfetti] = useState(false);
   const [couponIndexToUse, setCouponIndexToUse] = useState(null);
@@ -418,6 +396,14 @@ export default function App() {
     return;
   }, [familyData, dataFromServer]);
 
+  // Mission Manager 열 때 기존 미션 복사
+  useEffect(() => {
+    if (showMissionManager && familyData) {
+      setEditingMissions((familyData.dailyMissions || []).map(m => ({ ...m })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMissionManager]);
+
   const saveFamilyData = useCallback(async (newData) => {
     setFamilyData(newData);
     if (user && dataFromServer) {
@@ -428,6 +414,20 @@ export default function App() {
   }, [user, dataFromServer]);
 
   const triggerAlert = useCallback((text) => { setMessage(text); setTimeout(() => setMessage(''), 3000); }, []);
+
+  // 날짜 바뀌면 미션 리셋: repeat:true는 completed=false, repeat:false는 제거
+  useEffect(() => {
+    if (!familyData || !dataFromServer) return;
+    const missions = familyData.dailyMissions || [];
+    if (missions.length === 0) return;
+    const lastResetDate = familyData.missionsLastReset || '';
+    if (lastResetDate === todayDate) return;
+    const newMissions = missions
+      .filter(m => m.repeat)
+      .map(m => ({ ...m, completed: false, completedAt: null }));
+    saveFamilyData({ ...familyData, dailyMissions: newMissions, missionsLastReset: todayDate });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayDate, dataFromServer]);
 
   const handleLogin = async () => {
     try { await signInWithPopup(auth, googleProvider); }
