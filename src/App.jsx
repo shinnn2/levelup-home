@@ -206,9 +206,11 @@ function Onboarding({ lang, setLang, onComplete }) {
       <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@700;800;900&display=swap" rel="stylesheet" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <span style={{ fontSize: 11, color: '#6366f1', fontWeight: 800 }}>{t.stepOf} {step} / 5</span>
-        <button onClick={() => setLang(lang === 'ko' ? 'en' : 'ko')} style={{ background: '#fff', border: '1px solid #c7d2fe', borderRadius: 20, padding: '6px 12px', fontSize: 12, fontWeight: 800, color: '#4f46e5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Globe size={12} /> {t.languageToggle}
-        </button>
+        <select value={lang} onChange={e => setLang(e.target.value)} style={{ background: '#fff', border: '1px solid #c7d2fe', borderRadius: 20, padding: '6px 10px', fontSize: 12, fontWeight: 800, color: '#4f46e5', cursor: 'pointer', outline: 'none' }}>
+          <option value="en">🇺🇸 English</option>
+          <option value="zh">🇨🇳 中文</option>
+          <option value="ko">🇰🇷 한국어</option>
+        </select>
       </div>
 
       <div style={{ flex: 1, background: '#fff', borderRadius: 28, padding: 28, boxShadow: '0 10px 40px rgba(79,70,229,0.1)' }}>
@@ -658,13 +660,15 @@ export default function App() {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '32px 20px 40px', fontFamily: "'Nunito', 'Noto Sans KR', sans-serif" }}>
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@700;800;900&display=swap" rel="stylesheet" />
-        <button onClick={() => setLang(lang === 'ko' ? 'en' : 'ko')} style={{ position: 'absolute', top: 20, right: 20, background: '#fff', border: '1px solid #c7d2fe', borderRadius: 20, padding: '6px 12px', fontSize: 12, fontWeight: 800, color: '#4f46e5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Globe size={12} /> {t.languageToggle}
-        </button>
+        <select value={lang} onChange={e => setLang(e.target.value)} style={{ position: 'absolute', top: 20, right: 20, background: '#fff', border: '1px solid #c7d2fe', borderRadius: 20, padding: '6px 10px', fontSize: 12, fontWeight: 800, color: '#4f46e5', cursor: 'pointer', outline: 'none' }}>
+          <option value="en">🇺🇸 English</option>
+          <option value="zh">🇨🇳 中文</option>
+          <option value="ko">🇰🇷 한국어</option>
+        </select>
         <div style={{ fontSize: 56, marginBottom: 10 }}>⚔️</div>
         <h1 style={{ fontSize: 30, fontWeight: 900, color: '#4f46e5', marginBottom: 10, textAlign: 'center' }}>{t.appName}</h1>
         <p style={{ color: '#4338ca', fontWeight: 700, marginBottom: 4, textAlign: 'center', maxWidth: 340, fontSize: 14 }}>
-          {lang === 'ko' ? '잔소리 없는 습관 만들기' : 'Build Habits Without Nagging'}
+          {lang === 'ko' ? '잔소리 없는 습관 만들기' : lang === 'zh' ? '不需唠叨的习惯养成' : 'Build Habits Without Nagging'}
         </p>
         <p style={{ color: '#6b7280', fontWeight: 600, marginBottom: 16, textAlign: 'center', maxWidth: 340, fontSize: 12, lineHeight: 1.6 }}>
           {t.appTagline}
@@ -685,11 +689,11 @@ export default function App() {
           {t.loginWhyGoogle}
         </p>
         <p style={{ marginTop: 10, fontSize: 10, color: '#9ca3af', textAlign: 'center', maxWidth: 280 }}>
-          {lang === 'ko' ? '로그인하시면 ' : 'By signing in, you agree to our '}
+          {lang === 'ko' ? '로그인하시면 ' : lang === 'zh' ? '登录即表示您同意我们的' : 'By signing in, you agree to our '}
           <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', textDecoration: 'underline', fontWeight: 700 }}>
-            {lang === 'ko' ? '개인정보 처리방침' : 'Privacy Policy'}
+            {lang === 'ko' ? '개인정보 처리방침' : lang === 'zh' ? '隐私政策' : 'Privacy Policy'}
           </a>
-          {lang === 'ko' ? '에 동의하는 것으로 간주됩니다.' : '.'}
+          {lang === 'ko' ? '에 동의하는 것으로 간주됩니다.' : lang === 'zh' ? '。' : '.'}
         </p>
 
         {/* Safety info card */}
@@ -1095,11 +1099,18 @@ export default function App() {
             )}
             <button onClick={() => { setShowParentModal(false); setShowMissionManager(true); }} style={{ width: '100%', padding: 12, background: (familyData.dailyMissions || []).length === 0 ? '#4f46e5' : '#fef3c7', borderRadius: 14, fontWeight: 800, color: (familyData.dailyMissions || []).length === 0 ? '#fff' : '#b45309', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageMissions}</button>
             <button onClick={() => { setShowParentModal(false); setShowShopManager(true); }} style={{ width: '100%', padding: 12, background: '#e0e7ff', borderRadius: 14, fontWeight: 800, color: '#4338ca', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageShop}</button>
-            <button onClick={() => {
-              const newLang = lang === 'ko' ? 'en' : 'ko';
-              setLang(newLang);
-              saveFamilyData({ ...familyData, language: newLang });
-            }} style={{ width: '100%', padding: 12, background: '#f3e8ff', borderRadius: 14, fontWeight: 800, color: '#6b21a8', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.changeLanguage} ({lang === 'ko' ? 'EN' : 'KO'})</button>
+            <div style={{ background: '#f3e8ff', borderRadius: 14, padding: '8px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#6b21a8', flex: 1 }}>{t.changeLanguage}</span>
+              <select value={lang} onChange={e => {
+                const newLang = e.target.value;
+                setLang(newLang);
+                saveFamilyData({ ...familyData, language: newLang });
+              }} style={{ background: '#fff', border: '1px solid #d8b4fe', borderRadius: 10, padding: '6px 8px', fontSize: 12, fontWeight: 800, color: '#6b21a8', cursor: 'pointer', outline: 'none' }}>
+                <option value="en">🇺🇸 English</option>
+                <option value="zh">🇨🇳 中文</option>
+                <option value="ko">🇰🇷 한국어</option>
+              </select>
+            </div>
             <button onClick={() => setShowResetConfirm(true)} style={{ width: '100%', padding: 12, background: '#fef2f2', borderRadius: 14, fontWeight: 800, color: '#dc2626', border: '1px solid #fecaca', cursor: 'pointer', fontSize: 12, marginBottom: 8 }}>{t.resetFamily}</button>
             <button onClick={() => setShowParentModal(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
           </div>
