@@ -1158,13 +1158,16 @@ export default function App() {
       {/* Mission Manager */}
       {showMissionManager && (() => {
         const favs = familyData.favoriteRewards || [];
+        const poolLimit = playerNames.length * 5;
         // 아이별 미션 수 카운트 (편집 중인 미션에서)
         const countMissionsForChild = (childName) => {
           return editingMissions.filter(m => m.assignedTo === childName || m.assignedTo === 'all').length;
         };
-        const canAddMission = () => {
-          // 모든 아이가 5개 미만이어야 추가 가능
-          return playerNames.every(n => countMissionsForChild(n) < 5);
+        // 미션 풀 기준으로 추가 가능 여부 (총 미션 수 < 풀 한도)
+        const canAddMission = () => editingMissions.length < poolLimit;
+        // 아이별 초과 체크 (저장 시 사용)
+        const getOverLimitChild = () => {
+          return playerNames.find(n => countMissionsForChild(n) > 5);
         };
         const addMission = () => {
           if (!canAddMission()) { triggerAlert(t.maxMissionsReached); return; }
@@ -1182,6 +1185,15 @@ export default function App() {
         const removeMission = (id) => setEditingMissions(editingMissions.filter(m => m.id !== id));
         const saveMissions = () => {
           const valid = editingMissions.filter(m => m.name.trim());
+          // 저장 전 아이별 5개 초과 검증 (공통 미션 포함)
+          const overChild = playerNames.find(n => {
+            const count = valid.filter(m => m.assignedTo === n || m.assignedTo === 'all').length;
+            return count > 5;
+          });
+          if (overChild) {
+            triggerAlert(t.childOverLimit.replace('{child}', overChild));
+            return;
+          }
           const existing = familyData.dailyMissions || [];
           // 공통 미션(assignedTo='all')은 각 아이별로 복제
           const expanded = [];
@@ -1244,7 +1256,27 @@ export default function App() {
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(12px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#fff', borderRadius: 28, maxWidth: 420, width: '100%', padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
-              <h3 style={{ fontSize: 17, fontWeight: 900, marginBottom: 12, textAlign: 'center', color: '#4338ca' }}>{t.manageMissions}</h3>
+              <h3 style={{ fontSize: 17, fontWeight: 900, marginBottom: 10, textAlign: 'center', color: '#4338ca' }}>{t.manageMissions}</h3>
+              
+              {/* 미션 풀 + 아이별 카운트 */}
+              <div style={{ background: '#eef2ff', padding: 10, borderRadius: 12, marginBottom: 12, border: '1px solid #c7d2fe' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#4338ca' }}>📦 {t.missionPoolLabel}</span>
+                  <span style={{ fontSize: 11, fontWeight: 900, color: editingMissions.length >= poolLimit ? '#dc2626' : '#4338ca' }}>{editingMissions.length}/{poolLimit}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {playerNames.map(n => {
+                    const cnt = countMissionsForChild(n);
+                    const over = cnt > 5;
+                    return (
+                      <span key={n} style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 8, background: over ? '#fee2e2' : '#fff', color: over ? '#dc2626' : '#4338ca', border: `1px solid ${over ? '#fecaca' : '#c7d2fe'}` }}>
+                        {familyData.players[n].emoji || '🐱'} {n}: {cnt}/5 {over ? '⚠️' : ''}
+                      </span>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: 9, color: '#6b7280', fontWeight: 600, margin: 0, marginTop: 6, lineHeight: 1.4 }}>{t.perChildLimitNote.replace('{pool}', poolLimit)}</p>
+              </div>
               
               {/* Mission templates - only show if no missions yet */}
               {editingMissions.length === 0 && (
@@ -1261,7 +1293,7 @@ export default function App() {
                 </div>
               )}
               
-              <button onClick={addMission} disabled={!canAddMission()} style={{ width: '100%', padding: 10, background: !canAddMission() ? '#e5e7eb' : '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: !canAddMission() ? 'not-allowed' : 'pointer', marginBottom: 12, fontSize: 13 }}>{t.addMission}</button>
+              <button onClick={addMission} disabled={!canAddMission()} style={{ width: '100%', padding: 10, background: !canAddMission() ? '#e5e7eb' : '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: !canAddMission() ? 'not-allowed' : 'pointer', marginBottom: 12, fontSize: 13 }}>{t.addMission} ({editingMissions.length}/{poolLimit})</button>
               
               {editingMissions.map((m, idx) => (
                 <div key={m.id} id={`mission-card-${m.id}`} style={{ background: '#f9fafb', padding: 12, borderRadius: 14, marginBottom: 10, border: '1px solid #e5e7eb' }}>
