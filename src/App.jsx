@@ -497,14 +497,18 @@ export default function App() {
     if (nExp >= 100) { nExp = 0; nLv += 1; leveled = true; }
     else if (!isFirstEverMission) triggerAlert(t.missionApproved);
     
-    const rewardName = mission.reward || t.missionDefaultName;
-    const entry = { id: Date.now(), date: todayDate, type: 'daily', description: `${mission.name} → ${rewardName}`, rewards: `🪙 ${missionCoins}`, levelAfter: nLv };
+    const hasReward = mission.reward && mission.reward.trim();
+    const rewardName = hasReward ? mission.reward.trim() : '';
+    const description = hasReward ? `${mission.name} → ${rewardName}` : mission.name;
+    const entry = { id: Date.now(), date: todayDate, type: 'daily', description, rewards: `🪙 ${missionCoins}`, levelAfter: nLv };
     
     // 플레이어 업데이트 + 미션 완료 표시
+    // 보상이 있을 때만 쿠폰 발급, 없으면 코인만 지급
+    const newInventory = hasReward ? [...inv, { name: rewardName, icon: '🎫' }] : inv;
     const newPlayers = { ...familyData.players };
     newPlayers[familyData.activeUser] = { 
       ...p, 
-      inventory: [...inv, { name: rewardName, icon: '🎫' }], 
+      inventory: newInventory, 
       exp: nExp, 
       level: nLv, 
       coins: nCoins, 
@@ -843,7 +847,7 @@ export default function App() {
                         <span style={{ fontSize: 16 }}>{m.completed ? '✅' : '☐'}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 12, fontWeight: 800, color: m.completed ? '#16a34a' : '#78350f', textDecoration: m.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                          <div style={{ fontSize: 10, color: m.completed ? '#16a34a' : '#b45309', fontWeight: 600, marginTop: 2 }}>🎫 {m.reward} · 🪙 {m.coins}</div>
+                          <div style={{ fontSize: 10, color: m.completed ? '#16a34a' : '#b45309', fontWeight: 600, marginTop: 2 }}>{m.reward ? `🎫 ${m.reward} · ` : ''}🪙 {m.coins}</div>
                         </div>
                       </div>
                     ))}
@@ -1056,7 +1060,7 @@ export default function App() {
                         <div key={m.id} style={{ background: '#fff', padding: '8px 10px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 800, color: '#78350f', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                            <div style={{ fontSize: 9, color: '#b45309', fontWeight: 600, marginTop: 1 }}>🎫 {m.reward} · 🪙 {m.coins}</div>
+                            <div style={{ fontSize: 9, color: '#b45309', fontWeight: 600, marginTop: 1 }}>{m.reward ? `🎫 ${m.reward} · ` : ''}🪙 {m.coins}</div>
                           </div>
                           <button onClick={() => handleApproveMission(m.id)} style={{ background: '#4f46e5', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 10, fontWeight: 800, fontSize: 11, cursor: 'pointer' }}>{t.approveMission}</button>
                         </div>
@@ -1153,17 +1157,18 @@ export default function App() {
         };
         const removeMission = (id) => setEditingMissions(editingMissions.filter(m => m.id !== id));
         const saveMissions = () => {
-          const valid = editingMissions.filter(m => m.name.trim() && m.reward.trim());
+          const valid = editingMissions.filter(m => m.name.trim());
           const existing = familyData.dailyMissions || [];
           // 공통 미션(assignedTo='all')은 각 아이별로 복제
           const expanded = [];
           valid.forEach(m => {
-            if (m.assignedTo === 'all') {
+            const cleanM = { ...m, reward: (m.reward || '').trim() };
+            if (cleanM.assignedTo === 'all') {
               playerNames.forEach(childName => {
                 // 기존에 같은 이름+대상의 미션이 있으면 완료 상태 유지
-                const oldM = existing.find(em => em.name === m.name && em.assignedTo === childName);
+                const oldM = existing.find(em => em.name === cleanM.name && em.assignedTo === childName);
                 expanded.push({
-                  ...m,
+                  ...cleanM,
                   id: oldM ? oldM.id : (Date.now() + Math.random() + childName.length),
                   assignedTo: childName,
                   completed: oldM ? oldM.completed : false,
@@ -1171,15 +1176,16 @@ export default function App() {
                 });
               });
             } else {
-              const oldM = existing.find(em => em.id === m.id);
+              const oldM = existing.find(em => em.id === cleanM.id);
               expanded.push({
-                ...m,
+                ...cleanM,
                 completed: oldM ? oldM.completed : false,
                 completedAt: oldM ? oldM.completedAt : null,
               });
             }
           });
-          const newRewards = valid.map(m => m.reward.trim());
+          // 보상이 있는 미션만 favoriteRewards에 추가
+          const newRewards = valid.map(m => (m.reward || '').trim()).filter(r => r);
           const updatedFavs = [...new Set([...newRewards, ...favs])].slice(0, 10);
           saveFamilyData({ ...familyData, dailyMissions: expanded, favoriteRewards: updatedFavs, missionsLastReset: todayDate });
           setShowMissionManager(false);
