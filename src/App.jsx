@@ -1010,7 +1010,22 @@ export default function App() {
       {showParentModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(12px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: '#fff', borderRadius: 32, maxWidth: 360, width: '100%', padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: 20, fontWeight: 900, textAlign: 'center', marginBottom: 4 }}>{t.parentZone}</h3>
+            <h3 style={{ fontSize: 20, fontWeight: 900, textAlign: 'center', marginBottom: 12 }}>{t.parentZone}</h3>
+            {/* 자녀 전환 탭 (2명 이상일 때만 표시) */}
+            {playerNames.length > 1 && (
+              <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: '#f3f4f6', padding: 4, borderRadius: 14 }}>
+                {playerNames.map(name => {
+                  const isActive = name === activeUser;
+                  const emoji = familyData.players[name].emoji || '🐱';
+                  return (
+                    <button key={name} onClick={() => saveFamilyData({ ...familyData, activeUser: name })} style={{ flex: 1, padding: '8px 4px', background: isActive ? '#4f46e5' : 'transparent', color: isActive ? '#fff' : '#6b7280', borderRadius: 10, fontWeight: 800, fontSize: 12, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span>{emoji}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <p style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', marginBottom: 16 }}>{t.manage}{activeUser}</p>
             <div style={{ background: '#fffbeb', padding: 14, borderRadius: 20, border: '2px solid #fde68a', marginBottom: 10 }}>
               <div style={{ fontSize: 9, fontWeight: 900, color: '#b45309', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>{t.manualAdjust}</div>
@@ -1226,7 +1241,7 @@ export default function App() {
                   {(() => {
                     const combined = [...new Set([...favs, ...rewardTemplates])];
                     return (
-                      <select onChange={e => { if (e.target.value) updateMission(m.id, 'reward', e.target.value); e.target.value = ''; }} style={{ width: '100%', padding: 8, fontSize: 11, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, background: '#fff', color: '#6b7280', fontWeight: 600 }}>
+                      <select value="" onChange={e => { if (e.target.value) updateMission(m.id, 'reward', e.target.value); }} style={{ width: '100%', padding: 8, fontSize: 11, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, background: '#fff', color: '#6b7280', fontWeight: 600 }}>
                         <option value="">💡 {t.favoriteRewardsLabel}</option>
                         {combined.map((r, i) => <option key={i} value={r}>{r}</option>)}
                       </select>
