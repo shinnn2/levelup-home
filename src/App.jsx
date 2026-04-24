@@ -359,6 +359,8 @@ export default function App() {
   const [editingItem, setEditingItem] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const [showFirstMissionCelebration, setShowFirstMissionCelebration] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -428,6 +430,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMissionManager]);
 
+  // 기존 사용자도 한 번은 투어 — tourCompleted가 undefined면 투어 시작
+  useEffect(() => {
+    if (familyData && dataFromServer && familyData.tourCompleted === undefined) {
+      setShowTour(true);
+      setTourStep(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataFromServer]);
+
   const saveFamilyData = useCallback(async (newData) => {
     setFamilyData(newData);
     if (user && dataFromServer) {
@@ -459,7 +470,7 @@ export default function App() {
   };
   const handleLogout = async () => { await signOut(auth); };
 
-  const completeOnboarding = (data) => { saveFamilyData(data); };
+  const completeOnboarding = (data) => { saveFamilyData({ ...data, tourCompleted: false }); setShowTour(true); setTourStep(0); };
 
   // --- Actions ---
   const updatePlayer = (playerName, updater) => {
@@ -635,17 +646,25 @@ export default function App() {
         <p style={{ color: '#4338ca', fontWeight: 700, marginBottom: 4, textAlign: 'center', maxWidth: 340, fontSize: 14 }}>
           {lang === 'ko' ? '잔소리 없는 습관 만들기' : 'Build Habits Without Nagging'}
         </p>
-        <p style={{ color: '#6b7280', fontWeight: 600, marginBottom: 24, textAlign: 'center', maxWidth: 340, fontSize: 12, lineHeight: 1.6 }}>
-          {lang === 'ko' 
-            ? '아이가 미션을 완료하면 부모가 승인하고, 코인을 모아 실제 보상(간식, 영화, 나들이 등)으로 교환하는 가족용 앱입니다.'
-            : 'Kids complete missions, parents approve, coins are exchanged for real rewards (snacks, movies, outings) you set up.'}
+        <p style={{ color: '#6b7280', fontWeight: 600, marginBottom: 16, textAlign: 'center', maxWidth: 340, fontSize: 12, lineHeight: 1.6 }}>
+          {t.appTagline}
         </p>
+
+        {/* 3-step flow intro */}
+        <div style={{ background: '#fff', borderRadius: 16, padding: '14px 16px', maxWidth: 340, width: '100%', marginBottom: 20, border: '1px solid #e0e7ff' }}>
+          <p style={{ fontSize: 11, color: '#4338ca', fontWeight: 700, marginBottom: 8, lineHeight: 1.6 }}>{t.appIntro1}</p>
+          <p style={{ fontSize: 11, color: '#4338ca', fontWeight: 700, marginBottom: 8, lineHeight: 1.6 }}>{t.appIntro2}</p>
+          <p style={{ fontSize: 11, color: '#4338ca', fontWeight: 700, margin: 0, lineHeight: 1.6 }}>{t.appIntro3}</p>
+        </div>
 
         <button onClick={handleLogin} style={{ background: '#fff', border: '2px solid #e5e7eb', padding: '14px 28px', borderRadius: 16, fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 14px rgba(0,0,0,0.08)' }}>
           <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 7.1 29.3 5 24 5 16.3 5 9.7 9.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C41.4 35.8 44 30.3 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
           {t.signInGoogle}
         </button>
-        <p style={{ marginTop: 14, fontSize: 10, color: '#9ca3af', textAlign: 'center', maxWidth: 280 }}>
+        <p style={{ marginTop: 10, fontSize: 10, color: '#6b7280', textAlign: 'center', maxWidth: 320, fontWeight: 600, lineHeight: 1.5 }}>
+          {t.loginWhyGoogle}
+        </p>
+        <p style={{ marginTop: 10, fontSize: 10, color: '#9ca3af', textAlign: 'center', maxWidth: 280 }}>
           {lang === 'ko' ? '로그인하시면 ' : 'By signing in, you agree to our '}
           <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', textDecoration: 'underline', fontWeight: 700 }}>
             {lang === 'ko' ? '개인정보 처리방침' : 'Privacy Policy'}
@@ -927,9 +946,12 @@ export default function App() {
       {couponIndexToUse !== null && curInv[couponIndexToUse] && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(49,46,129,0.4)', backdropFilter: 'blur(6px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: '#fff', borderRadius: 32, maxWidth: 340, width: '100%', padding: 28, textAlign: 'center' }}>
-            <div style={{ width: 70, height: 70, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto 16px' }}>{curInv[couponIndexToUse].icon || '🎮'}</div>
-            <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 8 }}>{t.useCoupon}</h3>
-            <p style={{ fontSize: 13, color: '#6b7280', fontWeight: 700, marginBottom: 20 }}>{curInv[couponIndexToUse].name}</p>
+            <div style={{ width: 70, height: 70, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto 16px' }}>{curInv[couponIndexToUse].icon || '🎫'}</div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 8 }}>{t.confirmUseCoupon}</h3>
+            <p style={{ fontSize: 14, color: '#4338ca', fontWeight: 800, marginBottom: 10 }}>🎫 {curInv[couponIndexToUse].name}</p>
+            <div style={{ background: '#fffbeb', padding: 10, borderRadius: 10, marginBottom: 16, border: '1px solid #fde68a' }}>
+              <p style={{ fontSize: 11, color: '#92400e', fontWeight: 700, margin: 0, lineHeight: 1.5 }}>⚠️ {t.couponUseDesc}</p>
+            </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setCouponIndexToUse(null)} style={{ flex: 1, padding: '12px 0', background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.notNow}</button>
               <button onClick={handleUseCoupon} style={{ flex: 1, padding: '12px 0', background: '#4f46e5', color: '#fff', borderRadius: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}>{t.yesUse}</button>
@@ -1029,13 +1051,72 @@ export default function App() {
                 </div>
               );
             })()}
-            <button onClick={() => { setShowParentModal(false); setShowMissionManager(true); }} style={{ width: '100%', padding: 12, background: '#fef3c7', borderRadius: 14, fontWeight: 800, color: '#b45309', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageMissions}</button>
+            {(familyData.dailyMissions || []).length === 0 && (
+              <div style={{ background: '#dbeafe', padding: 10, borderRadius: 12, marginBottom: 8, border: '1px solid #93c5fd' }}>
+                <p style={{ fontSize: 11, color: '#1e40af', fontWeight: 700, margin: 0, lineHeight: 1.5 }}>👋 {t.tourParentFirstSetup}</p>
+              </div>
+            )}
+            <button onClick={() => { setShowParentModal(false); setShowMissionManager(true); }} style={{ width: '100%', padding: 12, background: (familyData.dailyMissions || []).length === 0 ? '#4f46e5' : '#fef3c7', borderRadius: 14, fontWeight: 800, color: (familyData.dailyMissions || []).length === 0 ? '#fff' : '#b45309', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageMissions}</button>
             <button onClick={() => { setShowParentModal(false); setShowShopManager(true); }} style={{ width: '100%', padding: 12, background: '#e0e7ff', borderRadius: 14, fontWeight: 800, color: '#4338ca', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageShop}</button>
+            <button onClick={() => {
+              const newLang = lang === 'ko' ? 'en' : 'ko';
+              setLang(newLang);
+              saveFamilyData({ ...familyData, language: newLang });
+            }} style={{ width: '100%', padding: 12, background: '#f3e8ff', borderRadius: 14, fontWeight: 800, color: '#6b21a8', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.changeLanguage} ({lang === 'ko' ? 'EN' : 'KO'})</button>
             <button onClick={() => setShowResetConfirm(true)} style={{ width: '100%', padding: 12, background: '#fef2f2', borderRadius: 14, fontWeight: 800, color: '#dc2626', border: '1px solid #fecaca', cursor: 'pointer', fontSize: 12, marginBottom: 8 }}>{t.resetFamily}</button>
             <button onClick={() => setShowParentModal(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
           </div>
         </div>
       )}
+
+      {/* First Visit Tour Overlay */}
+      {showTour && familyData && (() => {
+        const tourSteps = [
+          { title: t.tourStep1Title, desc: t.tourStep1Desc, emoji: '👤' },
+          { title: t.tourStep2Title, desc: t.tourStep2Desc, emoji: '🌟' },
+          { title: t.tourStep3Title, desc: t.tourStep3Desc, emoji: '🔒' },
+          { title: t.tourStep4Title, desc: t.tourStep4Desc, emoji: '📱' },
+        ];
+        const current = tourSteps[tourStep];
+        const isLast = tourStep === tourSteps.length - 1;
+        const finishTour = () => {
+          saveFamilyData({ ...familyData, tourCompleted: true });
+          setShowTour(false);
+          setTourStep(0);
+        };
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.75)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 28, maxWidth: 360, width: '100%', padding: 28, textAlign: 'center' }}>
+              {tourStep === 0 && (
+                <>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+                  <h3 style={{ fontSize: 20, fontWeight: 900, color: '#4338ca', marginBottom: 6 }}>{t.welcomeTitle}</h3>
+                  <p style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, marginBottom: 20 }}>{t.welcomeDesc}</p>
+                </>
+              )}
+              <div style={{ background: '#eef2ff', borderRadius: 20, padding: 20, marginBottom: 16 }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>{current.emoji}</div>
+                <h4 style={{ fontSize: 16, fontWeight: 900, color: '#4338ca', marginBottom: 8 }}>{current.title}</h4>
+                <p style={{ fontSize: 12, color: '#4b5563', fontWeight: 600, lineHeight: 1.6, margin: 0 }}>{current.desc}</p>
+              </div>
+              {/* 단계 표시 */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 16 }}>
+                {tourSteps.map((_, i) => (
+                  <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: i === tourStep ? '#4f46e5' : '#e5e7eb' }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={finishTour} style={{ flex: 1, padding: '12px 0', background: '#f3f4f6', color: '#6b7280', borderRadius: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.tourSkip}</button>
+                {isLast ? (
+                  <button onClick={finishTour} style={{ flex: 2, padding: '12px 0', background: '#4f46e5', color: '#fff', borderRadius: 14, fontWeight: 900, border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.tourStartUsing}</button>
+                ) : (
+                  <button onClick={() => setTourStep(tourStep + 1)} style={{ flex: 2, padding: '12px 0', background: '#4f46e5', color: '#fff', borderRadius: 14, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 13 }}>{t.tourNext} →</button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Mission Manager */}
       {showMissionManager && (() => {
@@ -1090,10 +1171,46 @@ export default function App() {
           setEditingMissions([]);
           triggerAlert(t.missionsSaved);
         };
+        const addMissionFromTemplate = (templateName) => {
+          if (!canAddMission()) { triggerAlert(t.maxMissionsReached); return; }
+          setEditingMissions([...editingMissions, { id: Date.now() + Math.random(), name: templateName, reward: '', coins: 30, repeat: true, completed: false, assignedTo: 'all' }]);
+        };
+        const missionTemplates = [
+          { icon: '🧮', name: t.templateMath },
+          { icon: '📖', name: t.templateReading },
+          { icon: '🎹', name: t.templatePiano },
+          { icon: '🧹', name: t.templateRoomClean },
+          { icon: '🦷', name: t.templateTeethBrush },
+          { icon: '✏️', name: t.templateHomework },
+          { icon: '🔤', name: t.templateEnglish },
+          { icon: '🏃', name: t.templateExercise },
+        ];
+        const rewardTemplates = [
+          t.rewardTemplateYoutube,
+          t.rewardTemplateGaming,
+          t.rewardTemplateSnack,
+          t.rewardTemplateMovie,
+        ];
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(12px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#fff', borderRadius: 28, maxWidth: 420, width: '100%', padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
               <h3 style={{ fontSize: 17, fontWeight: 900, marginBottom: 12, textAlign: 'center', color: '#4338ca' }}>{t.manageMissions}</h3>
+              
+              {/* Mission templates - only show if no missions yet */}
+              {editingMissions.length === 0 && (
+                <div style={{ background: '#fef3c7', padding: 12, borderRadius: 14, marginBottom: 12, border: '1px solid #fde68a' }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>{t.missionTemplates}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                    {missionTemplates.map((tpl, i) => (
+                      <button key={i} onClick={() => addMissionFromTemplate(tpl.name)} style={{ padding: '8px 6px', background: '#fff', border: '1px solid #fde68a', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#78350f', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 14 }}>{tpl.icon}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <button onClick={addMission} disabled={!canAddMission()} style={{ width: '100%', padding: 10, background: !canAddMission() ? '#e5e7eb' : '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: !canAddMission() ? 'not-allowed' : 'pointer', marginBottom: 12, fontSize: 13 }}>{t.addMission}</button>
               
               {editingMissions.map((m, idx) => (
@@ -1106,12 +1223,15 @@ export default function App() {
                   </div>
                   <input value={m.name} onChange={e => updateMission(m.id, 'name', e.target.value)} placeholder={t.missionName} maxLength={40} style={{ width: '100%', padding: 9, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, outline: 'none', boxSizing: 'border-box', fontWeight: 700 }} />
                   <input value={m.reward} onChange={e => updateMission(m.id, 'reward', e.target.value)} placeholder={t.missionReward} maxLength={40} style={{ width: '100%', padding: 9, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, outline: 'none', boxSizing: 'border-box', fontWeight: 700 }} />
-                  {favs.length > 0 && (
-                    <select onChange={e => { if (e.target.value) updateMission(m.id, 'reward', e.target.value); e.target.value = ''; }} style={{ width: '100%', padding: 8, fontSize: 11, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, background: '#fff', color: '#6b7280', fontWeight: 600 }}>
-                      <option value="">💡 {t.favoriteRewardsLabel}</option>
-                      {favs.map((r, i) => <option key={i} value={r}>{r}</option>)}
-                    </select>
-                  )}
+                  {(() => {
+                    const combined = [...new Set([...favs, ...rewardTemplates])];
+                    return (
+                      <select onChange={e => { if (e.target.value) updateMission(m.id, 'reward', e.target.value); e.target.value = ''; }} style={{ width: '100%', padding: 8, fontSize: 11, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, background: '#fff', color: '#6b7280', fontWeight: 600 }}>
+                        <option value="">💡 {t.favoriteRewardsLabel}</option>
+                        {combined.map((r, i) => <option key={i} value={r}>{r}</option>)}
+                      </select>
+                    );
+                  })()}
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
                     <input type="number" value={m.coins} onChange={e => updateMission(m.id, 'coins', parseInt(e.target.value) || 0)} min={0} max={999} style={{ width: 80, padding: 9, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, outline: 'none', boxSizing: 'border-box', fontWeight: 700, textAlign: 'center' }} />
                     <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, alignSelf: 'center' }}>🪙 {t.missionCoins}</span>
