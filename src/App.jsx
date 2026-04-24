@@ -771,9 +771,11 @@ export default function App() {
 
       <header style={{ background: '#fff', padding: '12px 16px 8px', borderBottom: '1px solid #e0e7ff', position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <button onClick={() => { const nl = lang === 'ko' ? 'en' : 'ko'; setLang(nl); saveFamilyData({ ...familyData, language: nl }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Globe size={14} /> {t.languageToggle}
-          </button>
+          <select value={lang} onChange={e => { const nl = e.target.value; setLang(nl); saveFamilyData({ ...familyData, language: nl }); }} style={{ background: '#fff', border: '1px solid #c7d2fe', borderRadius: 12, padding: '4px 6px', fontSize: 11, fontWeight: 800, color: '#4f46e5', cursor: 'pointer', outline: 'none' }}>
+            <option value="en">🇺🇸 EN</option>
+            <option value="zh">🇨🇳 中文</option>
+            <option value="ko">🇰🇷 한국어</option>
+          </select>
           <h1 style={{ fontSize: 20, fontWeight: 900, color: '#4f46e5', letterSpacing: 0.5, fontStyle: 'italic' }}>⚔️ {familyData.familyName || t.appName}</h1>
           <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><LogOut size={16} /></button>
         </div>
