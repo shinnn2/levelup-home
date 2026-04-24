@@ -190,6 +190,8 @@ function Onboarding({ lang, setLang, onComplete }) {
       activeUser: children[0].name.trim(),
       shopItems: items,
       language: lang,
+      dailyMissions: [],
+      favoriteRewards: [],
     });
   };
 
@@ -219,8 +221,19 @@ function Onboarding({ lang, setLang, onComplete }) {
         )}
         {step === 3 && (
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#4338ca', marginBottom: 4 }}>{t.pinLabel}</h2>
-            <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>{t.pinDesc}</p>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#4338ca', marginBottom: 8 }}>{t.pinSetupTitle}</h2>
+            <p style={{ fontSize: 13, color: '#4b5563', fontWeight: 600, marginBottom: 10, lineHeight: 1.5 }}>{t.pinSetupDesc}</p>
+            <div style={{ background: '#f9fafb', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, lineHeight: 1.8, margin: 0 }}>
+                {t.pinSetupReason1}<br />
+                {t.pinSetupReason2}<br />
+                {t.pinSetupReason3}
+              </p>
+            </div>
+            <div style={{ background: '#fffbeb', padding: 10, borderRadius: 10, marginBottom: 10, border: '1px solid #fde68a' }}>
+              <p style={{ fontSize: 10, color: '#92400e', fontWeight: 700, lineHeight: 1.5, margin: 0 }}>{t.pinSetupWarning}</p>
+            </div>
+            <p style={{ fontSize: 10, color: '#6366f1', fontWeight: 700, marginBottom: 12 }}>{t.pinSetupTip}</p>
             <input type="password" inputMode="numeric" maxLength={4} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" style={{ width: '100%', padding: '14px 16px', fontSize: 28, textAlign: 'center', letterSpacing: '0.5em', border: '2px solid #e5e7eb', borderRadius: 16, outline: 'none', boxSizing: 'border-box', fontWeight: 900 }} />
           </div>
         )}
@@ -327,6 +340,28 @@ export default function App() {
     return () => { document.removeEventListener('visibilitychange', handleVis); clearInterval(interval); };
   }, [todayDate]);
 
+  // 날짜 바뀌면 미션 리셋: repeat:true는 completed=false, repeat:false는 제거
+  useEffect(() => {
+    if (!familyData || !dataFromServer) return;
+    const missions = familyData.dailyMissions || [];
+    if (missions.length === 0) return;
+    const lastResetDate = familyData.missionsLastReset || '';
+    if (lastResetDate === todayDate) return;
+    const newMissions = missions
+      .filter(m => m.repeat)
+      .map(m => ({ ...m, completed: false, completedAt: null }));
+    saveFamilyData({ ...familyData, dailyMissions: newMissions, missionsLastReset: todayDate });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayDate, dataFromServer]);
+
+  // Mission Manager 열 때 기존 미션 복사
+  useEffect(() => {
+    if (showMissionManager && familyData) {
+      setEditingMissions((familyData.dailyMissions || []).map(m => ({ ...m })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMissionManager]);
+
   const [currentTab, setCurrentTab] = useState('bag');
   const [showConfetti, setShowConfetti] = useState(false);
   const [couponIndexToUse, setCouponIndexToUse] = useState(null);
@@ -340,6 +375,8 @@ export default function App() {
   const [showGuide, setShowGuide] = useState(false);
   const [guideTab, setGuideTab] = useState('parent');
   const [showEmojiShop, setShowEmojiShop] = useState(false);
+  const [showMissionManager, setShowMissionManager] = useState(false);
+  const [editingMissions, setEditingMissions] = useState([]);
   const [missionNameInputs, setMissionNameInputs] = useState({});
   const [editingItem, setEditingItem] = useState(null);
   const [pinInput, setPinInput] = useState('');
@@ -407,25 +444,42 @@ export default function App() {
     saveFamilyData({ ...familyData, players: newPlayers });
   };
 
-  const handleDailyMission = () => {
+  // 개별 미션 승인: missionId로 특정 미션을 완료 처리
+  const handleApproveMission = (missionId) => {
+    const missions = familyData.dailyMissions || [];
+    const mission = missions.find(m => m.id === missionId);
+    if (!mission || mission.completed) return;
+    
     const p = familyData.players[familyData.activeUser];
     const hist = p.history || [];
-    if (hist.some(h => h.date === todayDate && h.type === 'daily')) {
-      triggerAlert(t.missionAlreadyDone); return;
-    }
-    // 가족 전체에서 첫 미션인지 확인 (모든 자녀의 히스토리 체크)
+    // 가족 전체에서 첫 미션인지 확인
     const isFirstEverMission = Object.values(familyData.players).every(pl => 
       !(pl.history || []).some(h => h.type === 'daily')
     );
     const inv = normalizeInventory(p.inventory);
-    let nExp = p.exp + 20, nLv = p.level, nCoins = p.coins + 50, leveled = false;
+    const missionCoins = parseInt(mission.coins) || 30;
+    let nExp = p.exp + 20, nLv = p.level, nCoins = p.coins + missionCoins, leveled = false;
     if (nExp >= 100) { nExp = 0; nLv += 1; leveled = true; }
-    else if (!isFirstEverMission) triggerAlert(t.missionComplete);
-    const missionName = ((missionNameInputs[familyData.activeUser] || '').trim() || t.missionDefaultName);
-    const entry = { id: Date.now(), date: todayDate, type: 'daily', description: missionName, rewards: t.missionRewards, levelAfter: nLv };
-    updatePlayer(familyData.activeUser, (up) => ({ ...up, inventory: [...inv, { name: missionName, icon: '🎮' }], exp: nExp, level: nLv, coins: nCoins, history: [...hist, entry] }));
-    setMissionNameInputs(prev => ({ ...prev, [familyData.activeUser]: '' }));
-    setShowParentModal(false);
+    else if (!isFirstEverMission) triggerAlert(t.missionApproved);
+    
+    const rewardName = mission.reward || t.missionDefaultName;
+    const entry = { id: Date.now(), date: todayDate, type: 'daily', description: `${mission.name} → ${rewardName}`, rewards: `🪙 ${missionCoins}`, levelAfter: nLv };
+    
+    // 플레이어 업데이트 + 미션 완료 표시
+    const newPlayers = { ...familyData.players };
+    newPlayers[familyData.activeUser] = { 
+      ...p, 
+      inventory: [...inv, { name: rewardName, icon: '🎫' }], 
+      exp: nExp, 
+      level: nLv, 
+      coins: nCoins, 
+      history: [...hist, entry] 
+    };
+    const newMissions = missions.map(m => 
+      m.id === missionId ? { ...m, completed: true, completedAt: Date.now() } : m
+    );
+    saveFamilyData({ ...familyData, players: newPlayers, dailyMissions: newMissions });
+    
     if (isFirstEverMission) {
       playSound('levelUp');
       setShowFirstMissionCelebration(true);
@@ -433,8 +487,11 @@ export default function App() {
     } else if (leveled) {
       playSound('levelUp'); setShowLevelUp(true);
       setTimeout(() => setShowLevelUp(false), 4000);
+    } else {
+      playSound('coupon');
     }
   };
+
 
   const handleUndoDailyMission = () => {
     const p = familyData.players[familyData.activeUser];
@@ -712,24 +769,47 @@ export default function App() {
             <span style={{ fontSize: 17, marginRight: 8 }}>🪙</span><span style={{ fontWeight: 900, color: '#92400e' }}>{cur.coins}</span>
           </button>
           <div style={{ marginTop: 12 }}>
-            {!isTodayDone ? (
-              <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#b45309', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>⏳ {t.todaysMissionWaiting}</label>
-                <input
-                  value={missionNameInputs[activeUser] || ''}
-                  onChange={e => setMissionNameInputs(prev => ({ ...prev, [activeUser]: e.target.value }))}
-                  placeholder={t.missionNamePlaceholder}
-                  maxLength={40}
-                  style={{ width: '100%', padding: '10px 14px', fontSize: 13, border: '1px solid #fde68a', borderRadius: 14, outline: 'none', boxSizing: 'border-box', fontWeight: 700, background: '#fffbeb', color: '#78350f' }}
-                />
-                <p style={{ fontSize: 10, color: '#b45309', fontWeight: 600, marginTop: 6, lineHeight: 1.5 }}>{t.missionTapHint}</p>
-              </div>
-            ) : (
-              <div style={{ padding: '10px 14px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 10, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                <span style={{ fontSize: 16 }}>✅</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>{t.todaysMissionDone}</span>
-              </div>
-            )}
+            {(() => {
+              const missions = familyData.dailyMissions || [];
+              if (missions.length === 0) {
+                return (
+                  <div style={{ padding: '12px 14px', borderRadius: 14, background: '#f9fafb', border: '1px dashed #d1d5db', textAlign: 'center' }}>
+                    <p style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>{t.missionListEmpty}</p>
+                  </div>
+                );
+              }
+              const completedCount = missions.filter(m => m.completed).length;
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <label style={{ fontSize: 10, fontWeight: 800, color: '#b45309', textTransform: 'uppercase', letterSpacing: 1 }}>🌟 {t.missionsToday}</label>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: '#4f46e5' }}>{completedCount}/{missions.length} {t.missionProgress}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {missions.map(m => (
+                      <div key={m.id} style={{
+                        padding: '8px 12px',
+                        borderRadius: 12,
+                        background: m.completed ? '#f0fdf4' : '#fffbeb',
+                        border: `1px solid ${m.completed ? '#bbf7d0' : '#fde68a'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                      }}>
+                        <span style={{ fontSize: 16 }}>{m.completed ? '✅' : '☐'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: m.completed ? '#16a34a' : '#78350f', textDecoration: m.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                          <div style={{ fontSize: 10, color: m.completed ? '#16a34a' : '#b45309', fontWeight: 600, marginTop: 2 }}>🎫 {m.reward} · 🪙 {m.coins}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {completedCount < missions.length && (
+                    <p style={{ fontSize: 10, color: '#b45309', fontWeight: 600, marginTop: 8, lineHeight: 1.5, textAlign: 'center' }}>{t.missionTapHint}</p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </section>
@@ -897,21 +977,104 @@ export default function App() {
                   { l: '-🎟️', c: '#ef4444', a: () => handleManualCoupon(-1, '-1 🎟️') },
                 ].map((b, i) => <button key={i} onClick={b.a} style={{ padding: '10px 0', background: '#fff', color: b.c, borderRadius: 12, fontWeight: 900, fontSize: 11, border: '1px solid #e5e7eb', cursor: 'pointer' }}>{b.l}</button>)}
               </div>
-              <button onClick={handleDailyMission} disabled={isTodayDone} style={{ width: '100%', background: isTodayDone ? '#f0fdf4' : '#fff', padding: 11, borderRadius: 14, border: `1px solid ${isTodayDone ? '#86efac' : '#e0e7ff'}`, cursor: isTodayDone ? 'default' : 'pointer', display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
-                <div style={{ width: 36, height: 36, background: isTodayDone ? '#dcfce7' : '#eef2ff', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{isTodayDone ? '✅' : '🌟'}</div>
-                <span style={{ fontWeight: 900, fontSize: 12, color: isTodayDone ? '#16a34a' : '#4338ca', textAlign: 'left' }}>{isTodayDone ? t.missionDone : t.completeDailyMission}</span>
-              </button>
-              <button onClick={handleUndoDailyMission} disabled={curInv.length === 0} style={{ width: '100%', background: '#fff', padding: 11, borderRadius: 14, border: '1px solid #fecaca', cursor: curInv.length > 0 ? 'pointer' : 'not-allowed', opacity: curInv.length > 0 ? 1 : 0.5, display: 'flex', gap: 10, alignItems: 'center' }}>
-                <div style={{ width: 36, height: 36, background: '#fef2f2', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>⏪</div>
-                <span style={{ fontWeight: 900, fontSize: 12, color: '#ef4444' }}>{t.undoMission}</span>
-              </button>
             </div>
+            {(() => {
+              const missions = familyData.dailyMissions || [];
+              const pendingMissions = missions.filter(m => !m.completed);
+              if (missions.length === 0) return null;
+              return (
+                <div style={{ background: '#fffbeb', padding: 12, borderRadius: 16, border: '2px solid #fde68a', marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, fontWeight: 900, color: '#b45309', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>🌟 {t.missionsToday} ({pendingMissions.length})</div>
+                  {pendingMissions.length === 0 ? (
+                    <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, textAlign: 'center', margin: 0, padding: 8 }}>✅ {t.missionDone}</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {pendingMissions.map(m => (
+                        <div key={m.id} style={{ background: '#fff', padding: '8px 10px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: '#78350f', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                            <div style={{ fontSize: 9, color: '#b45309', fontWeight: 600, marginTop: 1 }}>🎫 {m.reward} · 🪙 {m.coins}</div>
+                          </div>
+                          <button onClick={() => handleApproveMission(m.id)} style={{ background: '#4f46e5', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 10, fontWeight: 800, fontSize: 11, cursor: 'pointer' }}>{t.approveMission}</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <button onClick={() => { setShowParentModal(false); setShowMissionManager(true); }} style={{ width: '100%', padding: 12, background: '#fef3c7', borderRadius: 14, fontWeight: 800, color: '#b45309', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageMissions}</button>
             <button onClick={() => { setShowParentModal(false); setShowShopManager(true); }} style={{ width: '100%', padding: 12, background: '#e0e7ff', borderRadius: 14, fontWeight: 800, color: '#4338ca', border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8 }}>{t.manageShop}</button>
             <button onClick={() => setShowResetConfirm(true)} style={{ width: '100%', padding: 12, background: '#fef2f2', borderRadius: 14, fontWeight: 800, color: '#dc2626', border: '1px solid #fecaca', cursor: 'pointer', fontSize: 12, marginBottom: 8 }}>{t.resetFamily}</button>
             <button onClick={() => setShowParentModal(false)} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
           </div>
         </div>
       )}
+
+      {/* Mission Manager */}
+      {showMissionManager && (() => {
+        const favs = familyData.favoriteRewards || [];
+        const addMission = () => {
+          if (editingMissions.length >= 5) { triggerAlert(t.maxMissionsReached); return; }
+          setEditingMissions([...editingMissions, { id: Date.now() + Math.random(), name: '', reward: '', coins: 30, repeat: false, completed: false }]);
+        };
+        const updateMission = (id, field, value) => {
+          setEditingMissions(editingMissions.map(m => m.id === id ? { ...m, [field]: value } : m));
+        };
+        const removeMission = (id) => setEditingMissions(editingMissions.filter(m => m.id !== id));
+        const saveMissions = () => {
+          const valid = editingMissions.filter(m => m.name.trim() && m.reward.trim());
+          const existing = familyData.dailyMissions || [];
+          const merged = valid.map(m => {
+            const oldM = existing.find(em => em.id === m.id);
+            return oldM ? { ...m, completed: oldM.completed, completedAt: oldM.completedAt } : { ...m, completed: false, completedAt: null };
+          });
+          const newRewards = valid.map(m => m.reward.trim());
+          const updatedFavs = [...new Set([...newRewards, ...favs])].slice(0, 10);
+          saveFamilyData({ ...familyData, dailyMissions: merged, favoriteRewards: updatedFavs, missionsLastReset: todayDate });
+          setShowMissionManager(false);
+          setEditingMissions([]);
+          triggerAlert(t.missionsSaved);
+        };
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(12px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 28, maxWidth: 420, width: '100%', padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
+              <h3 style={{ fontSize: 17, fontWeight: 900, marginBottom: 12, textAlign: 'center', color: '#4338ca' }}>{t.manageMissions}</h3>
+              <button onClick={addMission} disabled={editingMissions.length >= 5} style={{ width: '100%', padding: 10, background: editingMissions.length >= 5 ? '#e5e7eb' : '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: editingMissions.length >= 5 ? 'not-allowed' : 'pointer', marginBottom: 12, fontSize: 13 }}>{t.addMission} ({editingMissions.length}/5)</button>
+              
+              {editingMissions.map((m, idx) => (
+                <div key={m.id} style={{ background: '#f9fafb', padding: 12, borderRadius: 14, marginBottom: 10, border: '1px solid #e5e7eb' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>#{idx + 1}</span>
+                    <button onClick={() => removeMission(m.id)} style={{ background: '#fef2f2', border: 'none', padding: '4px 8px', borderRadius: 8, cursor: 'pointer', color: '#ef4444', fontSize: 10, fontWeight: 700 }}>
+                      <Trash2 size={12} style={{ verticalAlign: 'middle' }} />
+                    </button>
+                  </div>
+                  <input value={m.name} onChange={e => updateMission(m.id, 'name', e.target.value)} placeholder={t.missionName} maxLength={40} style={{ width: '100%', padding: 9, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, outline: 'none', boxSizing: 'border-box', fontWeight: 700 }} />
+                  <input value={m.reward} onChange={e => updateMission(m.id, 'reward', e.target.value)} placeholder={t.missionReward} maxLength={40} style={{ width: '100%', padding: 9, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, outline: 'none', boxSizing: 'border-box', fontWeight: 700 }} />
+                  {favs.length > 0 && (
+                    <select onChange={e => { if (e.target.value) updateMission(m.id, 'reward', e.target.value); e.target.value = ''; }} style={{ width: '100%', padding: 8, fontSize: 11, border: '1px solid #e5e7eb', borderRadius: 10, marginBottom: 6, background: '#fff', color: '#6b7280', fontWeight: 600 }}>
+                      <option value="">💡 {t.favoriteRewardsLabel}</option>
+                      {favs.map((r, i) => <option key={i} value={r}>{r}</option>)}
+                    </select>
+                  )}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    <input type="number" value={m.coins} onChange={e => updateMission(m.id, 'coins', parseInt(e.target.value) || 0)} min={0} max={999} style={{ width: 80, padding: 9, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, outline: 'none', boxSizing: 'border-box', fontWeight: 700, textAlign: 'center' }} />
+                    <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, alignSelf: 'center' }}>🪙 {t.missionCoins}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => updateMission(m.id, 'repeat', false)} style={{ flex: 1, padding: 8, background: !m.repeat ? '#4f46e5' : '#f3f4f6', color: !m.repeat ? '#fff' : '#6b7280', borderRadius: 10, fontSize: 11, fontWeight: 800, border: 'none', cursor: 'pointer' }}>📅 {t.missionOnce}</button>
+                    <button onClick={() => updateMission(m.id, 'repeat', true)} style={{ flex: 1, padding: 8, background: m.repeat ? '#4f46e5' : '#f3f4f6', color: m.repeat ? '#fff' : '#6b7280', borderRadius: 10, fontSize: 11, fontWeight: 800, border: 'none', cursor: 'pointer' }}>🔁 {t.missionRepeat}</button>
+                  </div>
+                </div>
+              ))}
+              
+              <button onClick={saveMissions} style={{ width: '100%', padding: 12, background: '#4f46e5', color: '#fff', borderRadius: 14, fontWeight: 800, border: 'none', cursor: 'pointer', fontSize: 13, marginBottom: 8, marginTop: 8 }}>💾 {t.saveMissions}</button>
+              <button onClick={() => { setShowMissionManager(false); setEditingMissions([]); }} style={{ width: '100%', padding: 12, background: '#f3f4f6', borderRadius: 14, fontWeight: 700, color: '#6b7280', border: 'none', cursor: 'pointer' }}>{t.close}</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Shop Manager */}
       {showShopManager && (
