@@ -396,10 +396,34 @@ export default function App() {
     return;
   }, [familyData, dataFromServer]);
 
-  // Mission Manager 열 때 기존 미션 복사
+  // Mission Manager 열 때 기존 미션 복사 (같은 이름+보상+repeat인 미션들은 '공통'으로 합쳐서 편집하기 쉽게)
   useEffect(() => {
     if (showMissionManager && familyData) {
-      setEditingMissions((familyData.dailyMissions || []).map(m => ({ ...m })));
+      const existing = (familyData.dailyMissions || []).map(m => ({ ...m, assignedTo: m.assignedTo || 'all' }));
+      // 같은 이름+보상+coins+repeat인 미션이 모든 아이에게 있으면 하나의 '공통' 미션으로 합치기
+      const playerCount = Object.keys(familyData.players || {}).length;
+      const grouped = [];
+      const used = new Set();
+      existing.forEach(m => {
+        if (used.has(m.id)) return;
+        // 같은 내용의 미션들 찾기
+        const matches = existing.filter(other => 
+          !used.has(other.id) &&
+          other.name === m.name && 
+          other.reward === m.reward && 
+          other.coins === m.coins && 
+          other.repeat === m.repeat
+        );
+        if (matches.length === playerCount && playerCount > 1) {
+          // 모든 아이에게 있는 공통 미션
+          matches.forEach(mm => used.add(mm.id));
+          grouped.push({ ...m, assignedTo: 'all' });
+        } else {
+          used.add(m.id);
+          grouped.push(m);
+        }
+      });
+      setEditingMissions(grouped);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMissionManager]);
@@ -770,7 +794,8 @@ export default function App() {
           </button>
           <div style={{ marginTop: 12 }}>
             {(() => {
-              const missions = familyData.dailyMissions || [];
+              const allMissions = familyData.dailyMissions || [];
+              const missions = allMissions.filter(m => m.assignedTo === activeUser);
               if (missions.length === 0) {
                 return (
                   <div style={{ padding: '12px 14px', borderRadius: 14, background: '#f9fafb', border: '1px dashed #d1d5db', textAlign: 'center' }}>
@@ -979,12 +1004,13 @@ export default function App() {
               </div>
             </div>
             {(() => {
-              const missions = familyData.dailyMissions || [];
+              const allMissions = familyData.dailyMissions || [];
+              const missions = allMissions.filter(m => m.assignedTo === activeUser);
               const pendingMissions = missions.filter(m => !m.completed);
               if (missions.length === 0) return null;
               return (
                 <div style={{ background: '#fffbeb', padding: 12, borderRadius: 16, border: '2px solid #fde68a', marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, fontWeight: 900, color: '#b45309', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>🌟 {t.missionsToday} ({pendingMissions.length})</div>
+                  <div style={{ fontSize: 9, fontWeight: 900, color: '#b45309', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>🌟 {activeUser}{t.missionsFor} ({pendingMissions.length})</div>
                   {pendingMissions.length === 0 ? (
                     <p style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, textAlign: 'center', margin: 0, padding: 8 }}>✅ {t.missionDone}</p>
                   ) : (
@@ -1014,9 +1040,17 @@ export default function App() {
       {/* Mission Manager */}
       {showMissionManager && (() => {
         const favs = familyData.favoriteRewards || [];
+        // 아이별 미션 수 카운트 (편집 중인 미션에서)
+        const countMissionsForChild = (childName) => {
+          return editingMissions.filter(m => m.assignedTo === childName || m.assignedTo === 'all').length;
+        };
+        const canAddMission = () => {
+          // 모든 아이가 5개 미만이어야 추가 가능
+          return playerNames.every(n => countMissionsForChild(n) < 5);
+        };
         const addMission = () => {
-          if (editingMissions.length >= 5) { triggerAlert(t.maxMissionsReached); return; }
-          setEditingMissions([...editingMissions, { id: Date.now() + Math.random(), name: '', reward: '', coins: 30, repeat: false, completed: false }]);
+          if (!canAddMission()) { triggerAlert(t.maxMissionsReached); return; }
+          setEditingMissions([...editingMissions, { id: Date.now() + Math.random(), name: '', reward: '', coins: 30, repeat: false, completed: false, assignedTo: 'all' }]);
         };
         const updateMission = (id, field, value) => {
           setEditingMissions(editingMissions.map(m => m.id === id ? { ...m, [field]: value } : m));
@@ -1025,13 +1059,33 @@ export default function App() {
         const saveMissions = () => {
           const valid = editingMissions.filter(m => m.name.trim() && m.reward.trim());
           const existing = familyData.dailyMissions || [];
-          const merged = valid.map(m => {
-            const oldM = existing.find(em => em.id === m.id);
-            return oldM ? { ...m, completed: oldM.completed, completedAt: oldM.completedAt } : { ...m, completed: false, completedAt: null };
+          // 공통 미션(assignedTo='all')은 각 아이별로 복제
+          const expanded = [];
+          valid.forEach(m => {
+            if (m.assignedTo === 'all') {
+              playerNames.forEach(childName => {
+                // 기존에 같은 이름+대상의 미션이 있으면 완료 상태 유지
+                const oldM = existing.find(em => em.name === m.name && em.assignedTo === childName);
+                expanded.push({
+                  ...m,
+                  id: oldM ? oldM.id : (Date.now() + Math.random() + childName.length),
+                  assignedTo: childName,
+                  completed: oldM ? oldM.completed : false,
+                  completedAt: oldM ? oldM.completedAt : null,
+                });
+              });
+            } else {
+              const oldM = existing.find(em => em.id === m.id);
+              expanded.push({
+                ...m,
+                completed: oldM ? oldM.completed : false,
+                completedAt: oldM ? oldM.completedAt : null,
+              });
+            }
           });
           const newRewards = valid.map(m => m.reward.trim());
           const updatedFavs = [...new Set([...newRewards, ...favs])].slice(0, 10);
-          saveFamilyData({ ...familyData, dailyMissions: merged, favoriteRewards: updatedFavs, missionsLastReset: todayDate });
+          saveFamilyData({ ...familyData, dailyMissions: expanded, favoriteRewards: updatedFavs, missionsLastReset: todayDate });
           setShowMissionManager(false);
           setEditingMissions([]);
           triggerAlert(t.missionsSaved);
@@ -1040,7 +1094,7 @@ export default function App() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,24,39,0.6)', backdropFilter: 'blur(12px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div style={{ background: '#fff', borderRadius: 28, maxWidth: 420, width: '100%', padding: 20, maxHeight: '90vh', overflowY: 'auto' }}>
               <h3 style={{ fontSize: 17, fontWeight: 900, marginBottom: 12, textAlign: 'center', color: '#4338ca' }}>{t.manageMissions}</h3>
-              <button onClick={addMission} disabled={editingMissions.length >= 5} style={{ width: '100%', padding: 10, background: editingMissions.length >= 5 ? '#e5e7eb' : '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: editingMissions.length >= 5 ? 'not-allowed' : 'pointer', marginBottom: 12, fontSize: 13 }}>{t.addMission} ({editingMissions.length}/5)</button>
+              <button onClick={addMission} disabled={!canAddMission()} style={{ width: '100%', padding: 10, background: !canAddMission() ? '#e5e7eb' : '#4f46e5', color: '#fff', borderRadius: 12, fontWeight: 800, border: 'none', cursor: !canAddMission() ? 'not-allowed' : 'pointer', marginBottom: 12, fontSize: 13 }}>{t.addMission}</button>
               
               {editingMissions.map((m, idx) => (
                 <div key={m.id} style={{ background: '#f9fafb', padding: 12, borderRadius: 14, marginBottom: 10, border: '1px solid #e5e7eb' }}>
@@ -1061,6 +1115,14 @@ export default function App() {
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
                     <input type="number" value={m.coins} onChange={e => updateMission(m.id, 'coins', parseInt(e.target.value) || 0)} min={0} max={999} style={{ width: 80, padding: 9, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, outline: 'none', boxSizing: 'border-box', fontWeight: 700, textAlign: 'center' }} />
                     <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, alignSelf: 'center' }}>🪙 {t.missionCoins}</span>
+                  </div>
+                  {/* 대상 선택 */}
+                  <div style={{ marginBottom: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', marginBottom: 4 }}>{t.missionAssignTo}</div>
+                    <select value={m.assignedTo || 'all'} onChange={e => updateMission(m.id, 'assignedTo', e.target.value)} style={{ width: '100%', padding: 8, fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff', fontWeight: 700, color: '#374151' }}>
+                      <option value="all">{t.assignAllKids}</option>
+                      {playerNames.map(n => <option key={n} value={n}>{familyData.players[n].emoji || '🐱'} {n}</option>)}
+                    </select>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => updateMission(m.id, 'repeat', false)} style={{ flex: 1, padding: 8, background: !m.repeat ? '#4f46e5' : '#f3f4f6', color: !m.repeat ? '#fff' : '#6b7280', borderRadius: 10, fontSize: 11, fontWeight: 800, border: 'none', cursor: 'pointer' }}>📅 {t.missionOnce}</button>
